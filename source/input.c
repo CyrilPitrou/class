@@ -1546,6 +1546,23 @@ int input_read_parameters(
     }
   }
 
+  /* version of Boltzmann equation hierarchy */
+
+  class_call(parser_read_string(pfc,"hierarchy",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+
+  if (flag1 == _TRUE_) {
+
+    if (strstr(string1,"optimal") != NULL) {
+      ppt->hierarchy = optimal;
+    }
+
+    if (strstr(string1,"tam") != NULL) {
+      ppt->hierarchy = tam;
+    }
+  }
+
   /** (d) define the primordial spectrum */
 
   class_call(parser_read_string(pfc,"P_k_ini type",&string1,&flag1,errmsg),

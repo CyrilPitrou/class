@@ -30,6 +30,7 @@ enum tca_flags {tca_on, tca_off};
 enum rsa_flags {rsa_off, rsa_on};
 enum ufa_flags {ufa_off, ufa_on};
 enum ncdmfa_flags {ncdmfa_off, ncdmfa_on};
+enum hierarchies {optimal, tam};
 
 //@}
 
@@ -200,6 +201,16 @@ struct perturbs
   //@{
 
   enum possible_gauges gauge; /**< gauge in which to perform this calculation */
+
+  //@}
+
+    //@}
+
+  /** @name - version of the Boltzmann equation */
+
+  //@{
+
+  enum hierarchies hierarchy; /**< wich version fo the Bolktzmann hierarchy */
 
   //@}
 
@@ -401,6 +412,16 @@ struct perturb_vector
   int index_pt_pol2_g;    /**< photon polarization, l=2 */
   int index_pt_pol3_g;    /**< photon polarization, l=3 */
   int l_max_pol_g;        /**< max momentum in Boltzmann hierarchy (at least 3) */
+
+  /* new hierarchy */
+
+  int index_pt_E2;
+  int index_pt_E3;
+  int index_pt_B2;
+  int index_pt_B3;
+
+  /*****************/
+
   int index_pt_delta_b;   /**< baryon density */
   int index_pt_theta_b;   /**< baryon velocity */
   int index_pt_delta_cdm; /**< cdm density */
@@ -559,6 +580,7 @@ struct perturb_workspace
 
   int max_l_max;    /**< maximum l_max for any multipole */
   double * s_l;     /**< array of freestreaming coefficients \f$ s_l = \sqrt{1-K*(l^2-1)/k^2} \f$*/
+  double * twokappam; /**< array of freestreaming coefficients \f$ {{}_2}\kappa^m_l = \sqrt{(l^2-m^2)(l^2-s^2)/l^2 * (1-K*l^2/q^2)} \f$*/
 
   //@}
 

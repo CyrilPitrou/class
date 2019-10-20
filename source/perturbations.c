@@ -1897,6 +1897,7 @@ int perturb_workspace_init(
   int index_mt=0;
   int index_ap;
   int l;
+  int m;
 
   /** - Compute maximum l_max for any multipole */;
   if (_scalars_) {
@@ -1916,6 +1917,16 @@ int perturb_workspace_init(
   class_alloc(ppw->s_l, sizeof(double)*(ppw->max_l_max+1),ppt->error_message);
   for (l=0; l<=ppw->max_l_max; l++){
     ppw->s_l[l] = 1.0;
+  }
+
+  class_alloc(ppw->twokappam, sizeof(double)*(ppw->max_l_max+1),ppt->error_message);
+  if ((ppt->has_scalars == _TRUE_) && (index_md == ppt->index_md_scalars)) m=0.;
+  if ((ppt->has_tensors == _TRUE_) && (index_md == ppt->index_md_tensors)) m=2.;
+  ppw->twokappam[0] = 0.;
+  ppw->twokappam[1] = 0.;
+  ppw->twokappam[2] = 0.;
+  for (l=3; l<=ppw->max_l_max; l++){
+    ppw->twokappam[l] = sqrt((1.-m*m/l/l)*(l*l-4.));
   }
 
   /** - define indices of metric perturbations obeying constraint
@@ -2056,6 +2067,7 @@ int perturb_workspace_free (
                             ) {
 
   free(ppw->s_l);
+  free(ppw->twokappam);
   free(ppw->pvecback);
   free(ppw->pvecthermo);
   free(ppw->pvecmetric);
@@ -2135,6 +2147,8 @@ int perturb_solve(
 
   /* Fourier mode */
   double k;
+  double q2;
+  double m;
 
   /* number of time intervals where the approximation scheme is uniform */
   int interval_number;
@@ -2186,6 +2200,16 @@ int perturb_solve(
   if (pba->has_curvature == _TRUE_){
     for (l = 0; l<=ppw->max_l_max; l++){
       ppw->s_l[l] = sqrt(MAX(1.0-pba->K*(l*l-1.0)/k/k,0.));
+    }
+    if ((ppt->has_scalars == _TRUE_) && (index_md == ppt->index_md_scalars)) m=0.;
+    if ((ppt->has_tensors == _TRUE_) && (index_md == ppt->index_md_tensors)) m=2.;
+    q2 = k*k+pba->K*(1.+m);
+    ppw->twokappam[0] = 0.;
+    ppw->twokappam[1] = 0.;
+    ppw->twokappam[2] = 0.;
+    for (l = 3; l<=ppw->max_l_max; l++){
+      ppw->twokappam[l] = sqrt((1.-m*m/l/l)*(l*l-4.)*(1.+fabs(pba->K)*l*l/q2));
+      //fprintf(stderr,"%d %e %e %e %e %e %e\n",l,ppw->twokappam[l],k,pba->K,m,q2,1.-pba->K*l*l/q2);
     }
   }
 
@@ -3078,10 +3102,21 @@ int perturb_vector_init(
 
         ppv->l_max_pol_g = ppr->l_max_pol_g;
 
-        class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,1);
-        class_define_index(ppv->index_pt_pol1_g,_TRUE_,index_pt,1);
-        class_define_index(ppv->index_pt_pol2_g,_TRUE_,index_pt,1);
-        class_define_index(ppv->index_pt_pol3_g,_TRUE_,index_pt,ppv->l_max_pol_g-2);
+        if (ppt->hierarchy == optimal) {
+          class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,1);
+          class_define_index(ppv->index_pt_pol1_g,_TRUE_,index_pt,1);
+          class_define_index(ppv->index_pt_pol2_g,_TRUE_,index_pt,1);
+          class_define_index(ppv->index_pt_pol3_g,_TRUE_,index_pt,ppv->l_max_pol_g-2);
+        }
+        else if (ppt->hierarchy == tam) {
+          class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,1);
+          class_define_index(ppv->index_pt_E3,_TRUE_,index_pt,ppv->l_max_pol_g-2);
+          class_define_index(ppv->index_pt_B2,_TRUE_,index_pt,1);
+          class_define_index(ppv->index_pt_B3,_TRUE_,index_pt,ppv->l_max_pol_g-2);
+        }
+        else {
+          class_stop(ppt->error_message,"Un-identified hierarchy, should be one of optimal or tam");
+        }
       }
     }
 
@@ -3201,10 +3236,18 @@ int perturb_vector_init(
 
         ppv->l_max_pol_g = ppr->l_max_pol_g_ten;
 
-        class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,1); /* photon polarization, l=0 */
-        class_define_index(ppv->index_pt_pol1_g,_TRUE_,index_pt,1); /* photon polarization, l=1 */
-        class_define_index(ppv->index_pt_pol2_g,_TRUE_,index_pt,1); /* photon polarization, l=2 */
-        class_define_index(ppv->index_pt_pol3_g,_TRUE_,index_pt,ppv->l_max_pol_g-2); /* photon polarization, l=3 */
+        if (ppt->hierarchy == optimal) {
+          class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,1); /* photon polarization, l=0 */
+          class_define_index(ppv->index_pt_pol1_g,_TRUE_,index_pt,1); /* photon polarization, l=1 */
+          class_define_index(ppv->index_pt_pol2_g,_TRUE_,index_pt,1); /* photon polarization, l=2 */
+          class_define_index(ppv->index_pt_pol3_g,_TRUE_,index_pt,ppv->l_max_pol_g-2); /* photon polarization, l=3 */
+        }
+        else if (ppt->hierarchy == tam) {
+          class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,1);
+          class_define_index(ppv->index_pt_E3,_TRUE_,index_pt,ppv->l_max_pol_g-2);
+          class_define_index(ppv->index_pt_B2,_TRUE_,index_pt,1);
+          class_define_index(ppv->index_pt_B3,_TRUE_,index_pt,ppv->l_max_pol_g-2);
+        }
       }
     }
 
@@ -3242,10 +3285,18 @@ int perturb_vector_init(
 
         ppv->l_max_pol_g = ppr->l_max_pol_g_ten;
 
-        class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,1); /* photon polarization, l=0 */
-        class_define_index(ppv->index_pt_pol1_g,_TRUE_,index_pt,1); /* photon polarization, l=1 */
-        class_define_index(ppv->index_pt_pol2_g,_TRUE_,index_pt,1); /* photon polarization, l=2 */
-        class_define_index(ppv->index_pt_pol3_g,_TRUE_,index_pt,ppv->l_max_pol_g-2); /* photon polarization, l=3 */
+        if (ppt->hierarchy == optimal) {
+          class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,1); /* photon polarization, l=0 */
+          class_define_index(ppv->index_pt_pol1_g,_TRUE_,index_pt,1); /* photon polarization, l=1 */
+          class_define_index(ppv->index_pt_pol2_g,_TRUE_,index_pt,1); /* photon polarization, l=2 */
+          class_define_index(ppv->index_pt_pol3_g,_TRUE_,index_pt,ppv->l_max_pol_g-2); /* photon polarization, l=3 */
+        }
+        else if (ppt->hierarchy == tam) {
+          class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,1);
+          class_define_index(ppv->index_pt_E3,_TRUE_,index_pt,ppv->l_max_pol_g-2);
+          class_define_index(ppv->index_pt_B2,_TRUE_,index_pt,1);
+          class_define_index(ppv->index_pt_B3,_TRUE_,index_pt,ppv->l_max_pol_g-2);
+        }
       }
     }
 
@@ -3319,11 +3370,18 @@ int perturb_vector_init(
         /* for polarization, we only need l=0,2 (but l =1,3, ... are
            defined only when rsa and tca are off) */
 
-        ppv->used_in_sources[ppv->index_pt_pol1_g]=_FALSE_;
+        if (ppt->hierarchy == optimal) {
+          ppv->used_in_sources[ppv->index_pt_pol1_g]=_FALSE_;
 
-        for (index_pt=ppv->index_pt_pol3_g; index_pt <= ppv->index_pt_pol0_g+ppv->l_max_pol_g; index_pt++)
-          ppv->used_in_sources[index_pt]=_FALSE_;
-
+          for (index_pt=ppv->index_pt_pol3_g; index_pt <= ppv->index_pt_pol0_g+ppv->l_max_pol_g; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+        }
+        else {
+          for (index_pt=ppv->index_pt_E3; index_pt <= ppv->index_pt_E2+ppv->l_max_pol_g-2; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+          for (index_pt=ppv->index_pt_B2; index_pt <= ppv->index_pt_B2+ppv->l_max_pol_g-2; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+        }
       }
 
     }
@@ -3376,11 +3434,19 @@ int perturb_vector_init(
 
         /* same for polarization, we only need l=0,2,4 */
 
-        ppv->used_in_sources[ppv->index_pt_pol1_g]=_FALSE_;
-        ppv->used_in_sources[ppv->index_pt_pol3_g]=_FALSE_;
+        if (ppt->hierarchy == optimal) {
+          ppv->used_in_sources[ppv->index_pt_pol1_g]=_FALSE_;
+          ppv->used_in_sources[ppv->index_pt_pol3_g]=_FALSE_;
 
-        for (index_pt=ppv->index_pt_pol0_g+5; index_pt <= ppv->index_pt_pol0_g+ppv->l_max_pol_g; index_pt++)
-          ppv->used_in_sources[index_pt]=_FALSE_;
+          for (index_pt=ppv->index_pt_pol0_g+5; index_pt <= ppv->index_pt_pol0_g+ppv->l_max_pol_g; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+        }
+        else {
+          for (index_pt=ppv->index_pt_E3; index_pt <= ppv->index_pt_E2+ppv->l_max_pol_g-2; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+          for (index_pt=ppv->index_pt_B2; index_pt <= ppv->index_pt_B2+ppv->l_max_pol_g-2; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+        }
       }
     }
 
@@ -3570,10 +3636,18 @@ int perturb_vector_init(
 
         ppv->y[ppv->index_pt_l3_g] = 6./7.*k/ppw->pvecthermo[pth->index_th_dkappa]*ppw->s_l[3]*ppv->y[ppv->index_pt_shear_g]; /* second-order tight-coupling approximation for l=3 */
 
-        ppv->y[ppv->index_pt_pol0_g] = 2.5*ppv->y[ppv->index_pt_shear_g];                                                       /* first-order tight-coupling approximation for polarization, l=0 */
-        ppv->y[ppv->index_pt_pol1_g] = k/ppw->pvecthermo[pth->index_th_dkappa]*(5.-2.*ppw->s_l[2])/6.*ppv->y[ppv->index_pt_shear_g]; /* second-order tight-coupling approximation for polarization, l=1 */
-        ppv->y[ppv->index_pt_pol2_g] = 0.5*ppv->y[ppv->index_pt_shear_g];                                                       /* first-order tight-coupling approximation for polarization, l=2 */
-        ppv->y[ppv->index_pt_pol3_g] = k/ppw->pvecthermo[pth->index_th_dkappa]*3.*ppw->s_l[3]/14.*ppv->y[ppv->index_pt_shear_g];     /* second-order tight-coupling approximation for polarization, l=3 */
+        // in perturb_vector_init, for scalars, when switching off tca approxmation,
+        // provide initial conditions to polarisation, given by tca
+
+        if (ppt->hierarchy == optimal) {
+          ppv->y[ppv->index_pt_pol0_g] = 2.5*ppv->y[ppv->index_pt_shear_g];                                                       /* first-order tight-coupling approximation for polarization, l=0 */
+          ppv->y[ppv->index_pt_pol1_g] = k/ppw->pvecthermo[pth->index_th_dkappa]*(5.-2.*ppw->s_l[2])/6.*ppv->y[ppv->index_pt_shear_g]; /* second-order tight-coupling approximation for polarization, l=1 */
+          ppv->y[ppv->index_pt_pol2_g] = 0.5*ppv->y[ppv->index_pt_shear_g];                                                       /* first-order tight-coupling approximation for polarization, l=2 */
+          ppv->y[ppv->index_pt_pol3_g] = k/ppw->pvecthermo[pth->index_th_dkappa]*3.*ppw->s_l[3]/14.*ppv->y[ppv->index_pt_shear_g];     /* second-order tight-coupling approximation for polarization, l=3 */
+        }
+        else {
+          ppv->y[ppv->index_pt_E2] = -5.*sqrt(6.)/8.*ppw->s_l[2]*ppv->y[ppv->index_pt_shear_g]; // very minor impact excepted on first multipoles
+        }
 
         if (pba->has_ur == _TRUE_) {
 
@@ -3689,22 +3763,51 @@ int perturb_vector_init(
                 ppw->pv->y[ppw->pv->index_pt_delta_g+l];
             }
 
-            ppv->y[ppv->index_pt_pol0_g] =
-              ppw->pv->y[ppw->pv->index_pt_pol0_g];
+            if (ppt->hierarchy == optimal) {
 
-            ppv->y[ppv->index_pt_pol1_g] =
-              ppw->pv->y[ppw->pv->index_pt_pol1_g];
+              ppv->y[ppv->index_pt_pol0_g] =
+                ppw->pv->y[ppw->pv->index_pt_pol0_g];
 
-            ppv->y[ppv->index_pt_pol2_g] =
-              ppw->pv->y[ppw->pv->index_pt_pol2_g];
+              ppv->y[ppv->index_pt_pol1_g] =
+                ppw->pv->y[ppw->pv->index_pt_pol1_g];
 
-            ppv->y[ppv->index_pt_pol3_g] =
-              ppw->pv->y[ppw->pv->index_pt_pol3_g];
+              ppv->y[ppv->index_pt_pol2_g] =
+                ppw->pv->y[ppw->pv->index_pt_pol2_g];
 
-            for (l = 4; l <= ppw->pv->l_max_pol_g; l++) {
+              ppv->y[ppv->index_pt_pol3_g] =
+                ppw->pv->y[ppw->pv->index_pt_pol3_g];
 
-              ppv->y[ppv->index_pt_pol0_g+l] =
-                ppw->pv->y[ppw->pv->index_pt_pol0_g+l];
+              for (l = 4; l <= ppw->pv->l_max_pol_g; l++) {
+
+                ppv->y[ppv->index_pt_pol0_g+l] =
+                  ppw->pv->y[ppw->pv->index_pt_pol0_g+l];
+              }
+            }
+            else{
+
+              ppv->y[ppv->index_pt_E2] =
+                ppw->pv->y[ppw->pv->index_pt_E2];
+
+              ppv->y[ppv->index_pt_E3] =
+                ppw->pv->y[ppw->pv->index_pt_E3];
+
+              for (l = 4; l <= ppw->pv->l_max_pol_g; l++) {
+
+                ppv->y[ppv->index_pt_E2+l-2] =
+                  ppw->pv->y[ppw->pv->index_pt_E2+l-2];
+              }
+
+              ppv->y[ppv->index_pt_B2] =
+                ppw->pv->y[ppw->pv->index_pt_B2];
+
+              ppv->y[ppv->index_pt_B3] =
+                ppw->pv->y[ppw->pv->index_pt_B3];
+
+              for (l = 4; l <= ppw->pv->l_max_pol_g; l++) {
+
+                ppv->y[ppv->index_pt_B2+l-2] =
+                  ppw->pv->y[ppw->pv->index_pt_B2+l-2];
+              }
             }
 
           }
@@ -3772,24 +3875,52 @@ int perturb_vector_init(
                 ppw->pv->y[ppw->pv->index_pt_delta_g+l];
             }
 
-            ppv->y[ppv->index_pt_pol0_g] =
-              ppw->pv->y[ppw->pv->index_pt_pol0_g];
+            if (ppt->hierarchy == optimal) {
 
-            ppv->y[ppv->index_pt_pol1_g] =
-              ppw->pv->y[ppw->pv->index_pt_pol1_g];
+              ppv->y[ppv->index_pt_pol0_g] =
+                ppw->pv->y[ppw->pv->index_pt_pol0_g];
 
-            ppv->y[ppv->index_pt_pol2_g] =
-              ppw->pv->y[ppw->pv->index_pt_pol2_g];
+              ppv->y[ppv->index_pt_pol1_g] =
+                ppw->pv->y[ppw->pv->index_pt_pol1_g];
 
-            ppv->y[ppv->index_pt_pol3_g] =
-              ppw->pv->y[ppw->pv->index_pt_pol3_g];
+              ppv->y[ppv->index_pt_pol2_g] =
+                ppw->pv->y[ppw->pv->index_pt_pol2_g];
 
-            for (l = 4; l <= ppw->pv->l_max_pol_g; l++) {
+              ppv->y[ppv->index_pt_pol3_g] =
+                ppw->pv->y[ppw->pv->index_pt_pol3_g];
 
-              ppv->y[ppv->index_pt_pol0_g+l] =
-                ppw->pv->y[ppw->pv->index_pt_pol0_g+l];
+              for (l = 4; l <= ppw->pv->l_max_pol_g; l++) {
+
+                ppv->y[ppv->index_pt_pol0_g+l] =
+                  ppw->pv->y[ppw->pv->index_pt_pol0_g+l];
+              }
             }
+            else {
 
+              ppv->y[ppv->index_pt_E2] =
+                ppw->pv->y[ppw->pv->index_pt_E2];
+
+              ppv->y[ppv->index_pt_E3] =
+                ppw->pv->y[ppw->pv->index_pt_E3];
+
+              for (l = 4; l <= ppw->pv->l_max_pol_g; l++) {
+
+                ppv->y[ppv->index_pt_E2+l-2] =
+                  ppw->pv->y[ppw->pv->index_pt_E2+l-2];
+              }
+
+              ppv->y[ppv->index_pt_B2] =
+                ppw->pv->y[ppw->pv->index_pt_B2];
+
+              ppv->y[ppv->index_pt_B3] =
+                ppw->pv->y[ppw->pv->index_pt_B3];
+
+              for (l = 4; l <= ppw->pv->l_max_pol_g; l++) {
+
+                ppv->y[ppv->index_pt_B2+l-2] =
+                  ppw->pv->y[ppw->pv->index_pt_B2+l-2];
+              }
+            }
           }
 
           if (pba->has_ur == _TRUE_) {
@@ -3905,8 +4036,11 @@ int perturb_vector_init(
         ppv->y[ppv->index_pt_delta_g] = 0.0; //TBC
         //-4./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
 
+        // in perturb_vector_init, for vectors, when switching off tca approxmation,
+        // provide initial conditions to polarisation, given by tca
         ppv->y[ppv->index_pt_pol0_g] = 0.0; //TBC
         //1./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
+
       }
 
       /* -- case of switching on radiation streaming
@@ -3994,7 +4128,14 @@ int perturb_vector_init(
 
         ppv->y[ppv->index_pt_delta_g] = -4./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
 
-        ppv->y[ppv->index_pt_pol0_g] = 1./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
+        // in perturb_vector_init, for tensors, when switching off tca approxmation,
+        // provide initial conditions to polarisation, given by tca
+        if (ppt->hierarchy == optimal) {
+          ppv->y[ppv->index_pt_pol0_g] = 1./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
+        }
+        else {
+          ppv->y[ppv->index_pt_E2] = 1./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa]; //TBC
+        }
       }
 
       /* -- case of switching on radiation streaming
@@ -5967,11 +6108,24 @@ int perturb_sources(
     else {
 
       delta_g = y[ppw->pv->index_pt_delta_g];
-      if (ppw->approx[ppw->index_ap_tca] == (int)tca_on)
-        P = 5.* ppw->s_l[2] * ppw->tca_shear_g/8.; /* (2.5+0.5+2)shear_g/8 */
-      else
-        P = (y[ppw->pv->index_pt_pol0_g] + y[ppw->pv->index_pt_pol2_g] + 2.* ppw->s_l[2] *y[ppw->pv->index_pt_shear_g])/8.;
-
+      if (ppw->approx[ppw->index_ap_tca] == (int)tca_on) {
+        if (ppt->hierarchy == optimal) {
+          P = 5.* ppw->s_l[2] * ppw->tca_shear_g/8.; /* (2.5+0.5+2)shear_g/8 */
+        }
+        else {
+          P = 5.* ppw->s_l[2] * ppw->tca_shear_g/8.; // TBC
+        }
+      }
+      else {
+        // in perturb_sources, for scalars,
+        // scalar sources in absence of approximations (no tca, no rsa)
+        if (ppt->hierarchy == optimal) {
+          P = (y[ppw->pv->index_pt_pol0_g] + y[ppw->pv->index_pt_pol2_g] + 2.* ppw->s_l[2] *y[ppw->pv->index_pt_shear_g])/8.;
+        }
+        else {
+          P = (5./2. * ppw->s_l[2] * y[ppw->pv->index_pt_shear_g]- sqrt(6.) * y[ppw->pv->index_pt_E2])/10.;
+        }
+      }
     }
 
     /** - --> for each type, compute source terms */
@@ -6276,17 +6430,30 @@ int perturb_sources(
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) {
 
-        P = -(1./10.*y[ppw->pv->index_pt_delta_g]
-              +2./7.*y[ppw->pv->index_pt_shear_g]
-              +3./70.*y[ppw->pv->index_pt_delta_g+4]
-              -3./5.*y[ppw->pv->index_pt_pol0_g]
-              +6./7.*y[ppw->pv->index_pt_pol2_g]
-              -3./70.*y[ppw->pv->index_pt_pol0_g+4])
-          /sqrt(6.);
+        // in perturb_sources, for tensors,
+        // scalar sources in absence of approximations (no tca, no rsa)
+        if (ppt->hierarchy == optimal) {
+          P = -(1./10.*y[ppw->pv->index_pt_delta_g]
+                +2./7.*y[ppw->pv->index_pt_shear_g]
+                +3./70.*y[ppw->pv->index_pt_delta_g+4]
+                -3./5.*y[ppw->pv->index_pt_pol0_g]
+                +6./7.*y[ppw->pv->index_pt_pol2_g]
+                -3./70.*y[ppw->pv->index_pt_pol0_g+4])
+            /sqrt(6.);
+        }
+        else {
+          P = (-sqrt(6.)/2.*(y[ppw->pv->index_pt_delta_g]/3.+40./21.*y[ppw->pv->index_pt_shear_g]+y[ppw->pv->index_pt_delta_g+4]/7.)
+               - sqrt(6.) * y[ppw->pv->index_pt_E2])/10.;
+        }
 
       }
       else {
-        P = 2./5.*_SQRT6_*y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa]; //TBC
+        if (ppt->hierarchy == optimal) {
+          P = 2./5.*_SQRT6_*y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa]; //TBC
+        }
+        else {
+          P = 2./5.*_SQRT6_*y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa]; //TBC
+        }
       }
     }
     else {
@@ -6915,6 +7082,7 @@ int perturb_derivs(double tau,
   double * pvecthermo;
   double * pvecmetric;
   double * s_l;
+  double * twokappam;
   struct perturb_vector * pv;
 
   /* short-cut notations for the perturbations */
@@ -6964,6 +7132,7 @@ int perturb_derivs(double tau,
   ppw = pppaw->ppw;
 
   s_l = ppw->s_l;
+  twokappam = ppw->twokappam;
   pvecback = ppw->pvecback;
   pvecthermo = ppw->pvecthermo;
   pvecmetric = ppw->pvecmetric;
@@ -7169,8 +7338,15 @@ int perturb_derivs(double tau,
       /** - ----> if photon tight-coupling is off */
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) {
 
-        /** - -----> define \f$ \Pi = G_{\gamma 0} + G_{\gamma 2} + F_{\gamma 2} \f$ */
-        P0 = (y[pv->index_pt_pol0_g] + y[pv->index_pt_pol2_g] + 2.*s_l[2]*y[pv->index_pt_shear_g])/8.;
+        // in perturb_derivs, for scalars, P^(0)
+        if (ppt->hierarchy == optimal) {
+          /** - -----> define \f$ \Pi = G_{\gamma 0} + G_{\gamma 2} + F_{\gamma 2} \f$ */
+          P0 = (y[pv->index_pt_pol0_g] + y[pv->index_pt_pol2_g] + 2.*s_l[2]*y[pv->index_pt_shear_g])/8.;
+        }
+        else {
+          /* 3 hierarchies */
+          P0 = (5./2. * ppw->s_l[2] * y[ppw->pv->index_pt_shear_g]- sqrt(6.) * y[ppw->pv->index_pt_E2])/10.;
+        }
 
         /** - -----> photon temperature velocity */
 
@@ -7206,38 +7382,106 @@ int perturb_derivs(double tau,
           k*(s_l[l]*y[pv->index_pt_delta_g+l-1]-(1.+l)*cotKgen*y[pv->index_pt_delta_g+l])
           - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
 
-        /** - -----> photon polarization l=0 */
+        /** - -----> photon polarization l=0 (remember s[1]=1) */
 
-        dy[pv->index_pt_pol0_g] =
-          -k*y[pv->index_pt_pol0_g+1]
-          -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_pol0_g]-4.*P0);
+        // in perturb_derivs, for scalars, Boltzmann hierarchy
+        if (ppt->hierarchy == optimal) {
+
+          dy[pv->index_pt_pol0_g] =
+            -k*y[pv->index_pt_pol0_g+1]
+            -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_pol0_g]-4.*P0);
+        }
+
 
         /** - -----> photon polarization l=1 */
 
-        dy[pv->index_pt_pol1_g] =
-          k/3.*(y[pv->index_pt_pol1_g-1]-2.*s_l[2]*y[pv->index_pt_pol1_g+1])
-          -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol1_g];
+        // in perturb_derivs, for scalars, Boltzmann hierarchy
+        if (ppt->hierarchy == optimal) {
+
+          dy[pv->index_pt_pol1_g] =
+            k/3.*(y[pv->index_pt_pol1_g-1]-2.*s_l[2]*y[pv->index_pt_pol1_g+1])
+            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol1_g];
+        }
 
         /** - -----> photon polarization l=2 */
 
-        dy[pv->index_pt_pol2_g] =
-          k/5.*(2.*s_l[2]*y[pv->index_pt_pol2_g-1]-3.*s_l[3]*y[pv->index_pt_pol2_g+1])
-          -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_pol2_g]-4./5.*P0);
+        // in perturb_derivs, for scalars, Boltzmann hierarchy
+        if (ppt->hierarchy == optimal) {
+
+          dy[pv->index_pt_pol2_g] =
+            k/5.*(2.*s_l[2]*y[pv->index_pt_pol2_g-1]-3.*s_l[3]*y[pv->index_pt_pol2_g+1])
+            -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_pol2_g]-4./5.*P0);
+        }
+        else {
+          dy[pv->index_pt_E2] = -sqrt(k2+pba->K)*twokappam[3]/7.*y[pv->index_pt_E3]
+            -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_E2] + sqrt(6.)*P0);
+
+          dy[pv->index_pt_B2] = -sqrt(k2+pba->K)*twokappam[3]/7.*y[pv->index_pt_B3]
+            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2];
+        }
 
         /** - -----> photon polarization l>2 */
 
-        for (l=3; l < pv->l_max_pol_g; l++)
-          dy[pv->index_pt_pol0_g+l] = k/(2.*l+1)*
-            (l*s_l[l]*y[pv->index_pt_pol0_g+l-1]-(l+1.)*s_l[l+1]*y[pv->index_pt_pol0_g+l+1])
-            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
+        // in perturb_derivs, for scalars, Boltzmann hierarchy
+        if (ppt->hierarchy == optimal) {
+
+          for (l=3; l < pv->l_max_pol_g; l++) {
+
+            dy[pv->index_pt_pol0_g+l] = k/(2.*l+1)*
+              (l*s_l[l]*y[pv->index_pt_pol0_g+l-1]-(l+1.)*s_l[l+1]*y[pv->index_pt_pol0_g+l+1])
+              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
+          }
+        }
+        else {
+
+          for (l=3; l < pv->l_max_pol_g; l++) {
+
+            dy[pv->index_pt_E2+l-2] = sqrt(k2+pba->K)*
+              (twokappam[l]/(2.*l-1.)*y[pv->index_pt_E2+l-3]-twokappam[l+1]/(2.*l+3.)*y[pv->index_pt_E2+l-1])
+              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2];
+
+            dy[pv->index_pt_B2+l-2] = sqrt(k2+pba->K)*
+              (twokappam[l]/(2.*l-1.)*y[pv->index_pt_B2+l-3]-twokappam[l+1]/(2.*l+3.)*y[pv->index_pt_B2+l-1])
+              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2];
+          }
+        }
 
         /** - -----> photon polarization lmax_pol */
 
         l = pv->l_max_pol_g;
-        dy[pv->index_pt_pol0_g+l] =
-          k*(s_l[l]*y[pv->index_pt_pol0_g+l-1]-(l+1)*cotKgen*y[pv->index_pt_pol0_g+l])
-          -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
 
+        // in perturb_derivs, for scalars, Boltzmann hierarchy
+        if (ppt->hierarchy == optimal) {
+
+          dy[pv->index_pt_pol0_g+l] =
+            k*(s_l[l]*y[pv->index_pt_pol0_g+l-1]-(l+1)*cotKgen*y[pv->index_pt_pol0_g+l])
+            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
+        }
+        else {
+          // 1st coeff: k/(2.*l+1)*l*s_l[l] --> k*s_l[l]: multiply by (2l+1)/l
+          // 2nd coeff: -k/(2.*l+1)*(l+1.)*s_l[l+1] --> -k*(l+1)*cotKgen: multiply by (2l+1)/s_l[l+1]*cotgen
+
+          // first guess
+          /*
+          dy[pv->index_pt_E0+l] = sqrt(k2+pba->K)*
+            (twokappam[l]/l*y[pv->index_pt_E0+l-1]-(l+1.)/(2.*l+3.)*(2.*l+1.)*cotKgen*y[pv->index_pt_E0+l])
+            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E0+l];
+
+          dy[pv->index_pt_B0+l] = sqrt(k2+pba->K)*
+            (twokappam[l]/l*y[pv->index_pt_B0+l-1]-(l+1.)/(2.*l+3.)*(2.*l+1.)*cotKgen*y[pv->index_pt_B0+l])
+            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B0+l];
+          */
+
+          // Pitrou-Riazuelo
+          dy[pv->index_pt_E2+l-2] = sqrt(k2+pba->K)*
+            (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_E2+l-3]
+             -(l+3.)*cotKgen*y[pv->index_pt_E2+l-2]);
+
+          dy[pv->index_pt_B2+l-2] =
+            (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3]
+            -(l+3.)*cotKgen*y[pv->index_pt_B2+l-2]);
+
+        }
       }
 
       /** - ----> if photon tight-coupling is on: */
@@ -7662,6 +7906,7 @@ int perturb_derivs(double tau,
     theta_g = y[pv->index_pt_theta_g];
     shear_g = y[pv->index_pt_shear_g];
 
+    // in perturb_derivs, for vectors, P^(1)
 
     /* (P^{(1)}) (see Eq. B.23 in 1305.3261)*/
     P1 = -_SQRT6_/40.*(
@@ -7725,6 +7970,8 @@ int perturb_derivs(double tau,
          -(1.+l)*cotKgen*y[pv->index_pt_delta_g+l])
       - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
 
+    // in perturb_derivs, for vectors, Boltzmann hierarchy
+
     /* photon polarization, l=0 (pol0_g = G_0)*/
     dy[pv->index_pt_pol0_g] =
       -k*y[pv->index_pt_pol0_g+1]
@@ -7776,26 +8023,33 @@ int perturb_derivs(double tau,
         theta_g = y[pv->index_pt_theta_g];
         shear_g = y[pv->index_pt_shear_g];
 
+        // in perturb_derivs, for tensors, P^(2)
 
         /* (P^{(2)}) */
-        P2 =-1.0/_SQRT6_*(
-                          1./10.*delta_g
-                          +2./7.*shear_g
-                          +3./70.*y[pv->index_pt_delta_g+4]
-                          -3./5.*y[pv->index_pt_pol0_g]
-                          +6./7.*y[pv->index_pt_pol2_g]
-                          -3./70.*y[pv->index_pt_pol0_g+4]);
+        if (ppt->hierarchy == optimal) {
+          P2 =-1.0/_SQRT6_*(
+                            1./10.*delta_g
+                            +2./7.*shear_g
+                            +3./70.*y[pv->index_pt_delta_g+4]
+                            -3./5.*y[pv->index_pt_pol0_g]
+                            +6./7.*y[pv->index_pt_pol2_g]
+                            -3./70.*y[pv->index_pt_pol0_g+4]);
 
-        /* above expression from paper, expression below matches old class but is not correct
-           P2 = -1.0/_SQRT6_*(
-           1./10.*delta_g
-           +2./35.*shear_g
-           +1./210.*y[pv->index_pt_delta_g+4]
-           -3./5.*y[pv->index_pt_pol0_g]
-           +6./35.*y[pv->index_pt_pol2_g]
-           -1./210.*y[pv->index_pt_pol0_g+4]
-           );
-        */
+          /* above expression from paper, expression below matches old class but is not correct
+             P2 = -1.0/_SQRT6_*(
+             1./10.*delta_g
+             +2./35.*shear_g
+             +1./210.*y[pv->index_pt_delta_g+4]
+             -3./5.*y[pv->index_pt_pol0_g]
+             +6./35.*y[pv->index_pt_pol2_g]
+             -1./210.*y[pv->index_pt_pol0_g+4]
+             );
+          */
+        }
+        else {
+          P2 = (-sqrt(6.)/2.*(delta_g/3.+40./21.*shear_g+y[ppw->pv->index_pt_delta_g+4]/7.)
+               - sqrt(6.) * y[ppw->pv->index_pt_E2])/10.;
+        }
 
         /* photon density (delta_g = F_0) */
         dy[pv->index_pt_delta_g] =
@@ -7833,25 +8087,77 @@ int perturb_derivs(double tau,
              -(1.+l)*cotKgen*y[pv->index_pt_delta_g+l])
           - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
 
-        /* photon polarization, l=0 (pol0_g = G_0)*/
-        dy[pv->index_pt_pol0_g] =
-          -k*y[pv->index_pt_pol0_g+1]
-          -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_pol0_g]-_SQRT6_*P2);
+        // in perturb_derivs, for tensors, Boltzmann hierarchy
 
-        /* additional momenta in Boltzmann hierarchy (beyond l=0,1,2,3,4) */
-        for (l=1; l < pv->l_max_pol_g; l++)
-          dy[pv->index_pt_pol0_g+l] =
-            k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_pol0_g+l-1]
-                         -(l+1.)*s_l[l+1]*y[pv->index_pt_pol0_g+l+1])
-            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
+        if (ppt->hierarchy == optimal) {
+
+          /* photon polarization, l=0 (pol0_g = G_0)*/
+          dy[pv->index_pt_pol0_g] =
+            -k*y[pv->index_pt_pol0_g+1]
+            -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_pol0_g]-_SQRT6_*P2);
+
+          /* photon polarization, l>0 */
+          for (l=1; l < pv->l_max_pol_g; l++) {
+
+            dy[pv->index_pt_pol0_g+l] =
+              k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_pol0_g+l-1]
+                           -(l+1.)*s_l[l+1]*y[pv->index_pt_pol0_g+l+1])
+              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
+          }
+        }
+        else {
+
+        // in perturb_derivs, for tensors, Boltzmann hierarchy
+
+          dy[pv->index_pt_E2] = sqrt(k2+3.*pba->K)*
+            (-4./2./3.*y[pv->index_pt_B2]
+             -twokappam[3]/7.*y[pv->index_pt_E3])
+            -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_E2]+sqrt(6.) * P2);
+
+          dy[pv->index_pt_B2] = sqrt(k2+3.*pba->K)*
+            (4./2./3.*y[pv->index_pt_E2]
+             -twokappam[3]/7.*y[pv->index_pt_B3])
+            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2];
+
+          for (l=3; l < pv->l_max_pol_g; l++) {
+
+            dy[pv->index_pt_E2+l-2] = sqrt(k2+3.*pba->K)*
+              (twokappam[l]/(2.*l-1.)*y[pv->index_pt_E2+l-3]
+               -4./l/(l+1.)*y[pv->index_pt_B2+l-2]
+               -twokappam[l+1]/(2.*l+3.)*y[pv->index_pt_E2+l-1])
+              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2];
+
+            dy[pv->index_pt_B2+l-2] = sqrt(k2+3.*pba->K)*
+              (twokappam[l]/(2.*l-1.)*y[pv->index_pt_B2+l-3]
+               +4./l/(l+1.)*y[pv->index_pt_E2+l-2]
+               -twokappam[l+1]/(2.*l+3.)*y[pv->index_pt_B2+l-1])
+              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2];
+          }
+        }
+
+        // in perturb_derivs, for tensors, Boltzmann hierarchy
 
         /* l=lmax */
         l = pv->l_max_pol_g;
-        dy[pv->index_pt_pol0_g+l] =
-          k*(s_l[l]*y[pv->index_pt_pol0_g+l-1]
-             -(l+1.)*cotKgen*y[pv->index_pt_pol0_g+l])
-          -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
 
+        if (ppt->hierarchy == optimal) {
+          dy[pv->index_pt_pol0_g+l] =
+            k*(s_l[l]*y[pv->index_pt_pol0_g+l-1]
+               -(l+1.)*cotKgen*y[pv->index_pt_pol0_g+l])
+            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
+        }
+        else {
+          // Pitrou-Riazuelo
+          dy[pv->index_pt_E2+l-2] = sqrt(k2+3.*pba->K)*
+            (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_E2+l-3]
+             +2./l*y[pv->index_pt_B2+l-2]
+             -(l+3.)*cotKgen*y[pv->index_pt_E2+l-2]);
+
+          dy[pv->index_pt_B2+l-2] = sqrt(k2+3.*pba->K)*
+            (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3]
+             -2./l*y[pv->index_pt_E2+l-2]
+             -(l+3.)*cotKgen*y[pv->index_pt_B2+l-2]);
+        }
       }
     }
 
