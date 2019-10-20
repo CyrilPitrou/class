@@ -2208,8 +2208,7 @@ int perturb_solve(
     ppw->twokappam[1] = 0.;
     ppw->twokappam[2] = 0.;
     for (l = 3; l<=ppw->max_l_max; l++){
-      ppw->twokappam[l] = sqrt((1.-m*m/l/l)*(l*l-4.)*(1.+fabs(pba->K)*l*l/q2));
-      //fprintf(stderr,"%d %e %e %e %e %e %e\n",l,ppw->twokappam[l],k,pba->K,m,q2,1.-pba->K*l*l/q2);
+      ppw->twokappam[l] = sqrt((1.-m*m/l/l)*(l*l-4.)*MAX(1.-pba->K*l*l/q2,0.));
     }
   }
 
