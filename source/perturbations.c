@@ -6450,10 +6450,11 @@ int perturb_sources(
       }
       else {
         if (ppt->hierarchy == optimal) {
-          P = 2./5.*_SQRT6_*y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa]; //TBC
+          P = -1./3.*_SQRT6_*y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
+          // factor 2/5 -> -1/3; credits C. Pitrou
         }
         else {
-          P = 2./5.*_SQRT6_*y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa]; //TBC
+          P = -1./3.*_SQRT6_*y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa]; //TBC
         }
       }
     }
