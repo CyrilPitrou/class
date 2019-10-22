@@ -1641,7 +1641,7 @@ int perturb_get_k_list(
 
     /* first value */
     if (pba->sgnK == 0) {
-      /* K<0 (flat)  : start close to zero */
+      /* K=0 (flat)  : start close to zero */
       k_min=ppr->k_min_tau0/pba->conformal_age;
     }
     else if (pba->sgnK == -1) {
@@ -6916,10 +6916,12 @@ int perturb_print_variables(double tau,
         pol4_g = y[ppw->pv->index_pt_pol0_g+4];
       }
       else {
-        delta_g = -4./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa]; //TBC
+        delta_g = _SQRT6_*4./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa]; //TBC
+        // factor -4/3 -> sqrt(6)*4/3; credits C. Pitrou
         shear_g = 0.;
         l4_g = 0.;
-        pol0_g = 1./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa]; //TBC
+        pol0_g = -_SQRT6_/3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa]; //TBC
+        // factor 1/3 -> -sqrt(6)/3; credits C. Pitrou
         pol2_g = 0.;
         pol4_g = 0.;
       }
@@ -7477,11 +7479,13 @@ int perturb_derivs(double tau,
           // Pitrou-Riazuelo
           dy[pv->index_pt_E2+l-2] = sqrt(k2+pba->K)*
             (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_E2+l-3]
-             -(l+3.)*cotKgen*y[pv->index_pt_E2+l-2]);
+             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2])
+             -(l+3.)*k*cotKgen*y[pv->index_pt_E2+l-2];
 
-          dy[pv->index_pt_B2+l-2] =
+          dy[pv->index_pt_B2+l-2] = sqrt(k2+pba->K)*
             (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3]
-            -(l+3.)*cotKgen*y[pv->index_pt_B2+l-2]);
+             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2])
+            -(l+3.)*k*cotKgen*y[pv->index_pt_B2+l-2];
 
         }
       }
@@ -8165,12 +8169,14 @@ int perturb_derivs(double tau,
           dy[pv->index_pt_E2+l-2] = sqrt(k2+3.*pba->K)*
             (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_E2+l-3]
              +2./l*y[pv->index_pt_B2+l-2]
-             -(l+3.)*cotKgen*y[pv->index_pt_E2+l-2]);
+             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2])
+             -(l+3.)*k*cotKgen*y[pv->index_pt_E2+l-2];
 
           dy[pv->index_pt_B2+l-2] = sqrt(k2+3.*pba->K)*
             (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3]
              -2./l*y[pv->index_pt_E2+l-2]
-             -(l+3.)*cotKgen*y[pv->index_pt_B2+l-2]);
+             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2])
+             -(l+3.)*k*cotKgen*y[pv->index_pt_B2+l-2];
         }
       }
     }
