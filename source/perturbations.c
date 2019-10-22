@@ -8115,12 +8115,12 @@ int perturb_derivs(double tau,
 
         // in perturb_derivs, for tensors, Boltzmann hierarchy
 
-          dy[pv->index_pt_E2] = sqrt(k2+3.*pba->K)*
+          dy[pv->index_pt_E2] = sqrt(MAX(k2+3.*pba->K,0.))*
             (-4./2./3.*y[pv->index_pt_B2]
              -twokappam[3]/7.*y[pv->index_pt_E3])
             -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_E2]+sqrt(6.) * P2);
 
-          dy[pv->index_pt_B2] = sqrt(k2+3.*pba->K)*
+          dy[pv->index_pt_B2] = sqrt(MAX(k2+3.*pba->K,0.))*
             (4./2./3.*y[pv->index_pt_E2]
              -twokappam[3]/7.*y[pv->index_pt_B3])
             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2];
@@ -8139,13 +8139,13 @@ int perturb_derivs(double tau,
                        "%e %e",twokappam[l],sqrt((1.-4./l/l)*(l*l-1.)));
             */
 
-            dy[pv->index_pt_E2+l-2] = sqrt(k2+3.*pba->K)*
+            dy[pv->index_pt_E2+l-2] = sqrt(MAX(k2+3.*pba->K,0.))*
               (twokappam[l]/(2.*l-1.)*y[pv->index_pt_E2+l-3]
                -4./l/(l+1.)*y[pv->index_pt_B2+l-2]
                -twokappam[l+1]/(2.*l+3.)*y[pv->index_pt_E2+l-1])
               -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2];
 
-            dy[pv->index_pt_B2+l-2] = sqrt(k2+3.*pba->K)*
+            dy[pv->index_pt_B2+l-2] = sqrt(MAX(k2+3.*pba->K,0.))*
               (twokappam[l]/(2.*l-1.)*y[pv->index_pt_B2+l-3]
                +4./l/(l+1.)*y[pv->index_pt_E2+l-2]
                -twokappam[l+1]/(2.*l+3.)*y[pv->index_pt_B2+l-1])
@@ -8166,13 +8166,13 @@ int perturb_derivs(double tau,
         }
         else {
           // Pitrou-Riazuelo
-          dy[pv->index_pt_E2+l-2] = sqrt(k2+3.*pba->K)*
+          dy[pv->index_pt_E2+l-2] = sqrt(MAX(k2+3.*pba->K,0.))*
             (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_E2+l-3]
              +2./l*y[pv->index_pt_B2+l-2]
              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2])
              -(l+3.)*k*cotKgen*y[pv->index_pt_E2+l-2];
 
-          dy[pv->index_pt_B2+l-2] = sqrt(k2+3.*pba->K)*
+          dy[pv->index_pt_B2+l-2] = sqrt(MAX(k2+3.*pba->K,0.))*
             (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3]
              -2./l*y[pv->index_pt_E2+l-2]
              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2])
