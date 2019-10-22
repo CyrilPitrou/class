@@ -1897,7 +1897,7 @@ int perturb_workspace_init(
   int index_mt=0;
   int index_ap;
   int l;
-  int m;
+  double m;
 
   /** - Compute maximum l_max for any multipole */;
   if (_scalars_) {
@@ -8118,7 +8118,19 @@ int perturb_derivs(double tau,
              -twokappam[3]/7.*y[pv->index_pt_B3])
             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2];
 
+          /*
+          class_test(twokappam[3]!=sqrt((1.-4./3./3.)*(3.*3.-4.)),
+                     ppt->error_message,
+                     "%e %e",twokappam[3],sqrt((1.-4./3./3.)*(3.*3.-1.)));
+          */
+
           for (l=3; l < pv->l_max_pol_g; l++) {
+
+            /*
+            class_test(twokappam[l]!=sqrt((1.-4./l/l)*(l*l-4.)),
+                       ppt->error_message,
+                       "%e %e",twokappam[l],sqrt((1.-4./l/l)*(l*l-1.)));
+            */
 
             dy[pv->index_pt_E2+l-2] = sqrt(k2+3.*pba->K)*
               (twokappam[l]/(2.*l-1.)*y[pv->index_pt_E2+l-3]
