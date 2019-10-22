@@ -6441,8 +6441,8 @@ int perturb_sources(
             /sqrt(6.);
         }
         else {
-          P = (-sqrt(6.)/2.*(y[ppw->pv->index_pt_delta_g]/3.+40./21.*y[ppw->pv->index_pt_shear_g]+y[ppw->pv->index_pt_delta_g+4]/7.)
-               - sqrt(6.) * y[ppw->pv->index_pt_E2])/10.;
+          P = (-(y[ppw->pv->index_pt_delta_g]+20./7.*y[ppw->pv->index_pt_shear_g]+3./7.*y[ppw->pv->index_pt_delta_g+4])/_SQRT6_
+                -_SQRT6_*y[ppw->pv->index_pt_E2])/10.;
         }
 
       }
@@ -8046,8 +8046,8 @@ int perturb_derivs(double tau,
           */
         }
         else {
-          P2 = (-sqrt(6.)/2.*(delta_g/3.+40./21.*shear_g+y[ppw->pv->index_pt_delta_g+4]/7.)
-               - sqrt(6.) * y[ppw->pv->index_pt_E2])/10.;
+          P2 = (-(delta_g+20./7.*shear_g+3./7.*y[pv->index_pt_delta_g+4])/_SQRT6_
+                -_SQRT6_*y[ppw->pv->index_pt_E2])/10.;
         }
 
         /* photon density (delta_g = F_0) */
