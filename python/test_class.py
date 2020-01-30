@@ -144,6 +144,12 @@ CLASS_INPUT['Lensing'] = (
     [{'lensing': 'yes'}],
     'power')
 
+#Testing the possibility of switching to the Total angular momentum hierarchy instead of the optimal hierarchy
+CLASS_INPUT['Hierarchies'] = (
+    [{'hierarchy': 'optimal'},
+     {'hierarchy': 'tam'}],
+    'normal')
+
 # Let's kill the machine (replace all 'normal' flags with power', uncomment at
 # you own risk)
 # for k, v in CLASS_INPUT.iteritems():

@@ -581,6 +581,7 @@ struct perturb_workspace
   int max_l_max;    /**< maximum l_max for any multipole */
   double * s_l;     /**< array of freestreaming coefficients \f$ s_l = \sqrt{1-K*(l^2-1)/k^2} \f$*/
   double * twokappam; /**< array of freestreaming coefficients \f$ {{}_2}\kappa^m_l = \sqrt{(l^2-m^2)(l^2-s^2)/l^2 * (1-K*l^2/q^2)} \f$*/
+  double * zerokappam; /**< array of freestreaming coefficients \f$ {{}_0}\kappa^m_l = \sqrt{(l^2-m^2) * (1-K*l^2/q^2)} \f$*/
 
   //@}
 

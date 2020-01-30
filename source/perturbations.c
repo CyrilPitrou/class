@@ -1641,7 +1641,7 @@ int perturb_get_k_list(
 
     /* first value */
     if (pba->sgnK == 0) {
-      /* K=0 (flat)  : start close to zero */
+      /* K<0 (flat)  : start close to zero */
       k_min=ppr->k_min_tau0/pba->conformal_age;
     }
     else if (pba->sgnK == -1) {
@@ -1919,6 +1919,9 @@ int perturb_workspace_init(
     ppw->s_l[l] = 1.0;
   }
 
+  /** - Allocate \f$ {}_s \kappa_l^m \f$[] array for free streaming of multipoles in the Total Angular Momentum (TAM) hierarchy 
+      (see original papers astro-ph/9702170 for flat case and astro-ph/9709066 for curved case, and 1909.13687). We allocate first the case where s=2 (for both m=0 and 2)
+      The default values stored here are for the flat case, and the correct values with curvature are updated later if necessary.*/
   class_alloc(ppw->twokappam, sizeof(double)*(ppw->max_l_max+1),ppt->error_message);
   if ((ppt->has_scalars == _TRUE_) && (index_md == ppt->index_md_scalars)) m=0.;
   if ((ppt->has_tensors == _TRUE_) && (index_md == ppt->index_md_tensors)) m=2.;
@@ -1929,6 +1932,22 @@ int perturb_workspace_init(
     ppw->twokappam[l] = sqrt((1.-m*m/l/l)*(l*l-4.));
   }
 
+  /** Then we allocate the case s=0 with m=2 only */
+  class_alloc(ppw->zerokappam, sizeof(double)*(ppw->max_l_max+1),ppt->error_message);
+  if ((ppt->has_scalars == _TRUE_) && (index_md == ppt->index_md_scalars)) {
+    for (l=0; l<=ppw->max_l_max; l++){
+    ppw->zerokappam[l] = l;
+    }
+  }
+  if ((ppt->has_tensors == _TRUE_) && (index_md == ppt->index_md_tensors)) {
+    ppw->zerokappam[0] = 0.;
+    ppw->zerokappam[1] = 0.;
+    ppw->zerokappam[2] = 0.;
+    for (l=3; l<=ppw->max_l_max; l++){
+      ppw->zerokappam[l] = sqrt((l*l-4.));
+    }
+  }
+  
   /** - define indices of metric perturbations obeying constraint
       equations (this can be done once and for all, because the
       vector of metric perturbations is the same whatever the
@@ -2068,6 +2087,7 @@ int perturb_workspace_free (
 
   free(ppw->s_l);
   free(ppw->twokappam);
+  free(ppw->zerokappam);
   free(ppw->pvecback);
   free(ppw->pvecthermo);
   free(ppw->pvecmetric);
@@ -2197,6 +2217,7 @@ int perturb_solve(
              "stop to avoid division by zero");
 
   /** - If non-zero curvature, update array of free-streaming coefficients ppw->s_l */
+  /** - We also update the skappalm coefficients of free streaming in the TAM hierarchy */
   if (pba->has_curvature == _TRUE_){
     for (l = 0; l<=ppw->max_l_max; l++){
       ppw->s_l[l] = sqrt(MAX(1.0-pba->K*(l*l-1.0)/k/k,0.));
@@ -2208,7 +2229,23 @@ int perturb_solve(
     ppw->twokappam[1] = 0.;
     ppw->twokappam[2] = 0.;
     for (l = 3; l<=ppw->max_l_max; l++){
-      ppw->twokappam[l] = sqrt((1.-m*m/l/l)*(l*l-4.)*MAX(1.-pba->K*l*l/q2,0.));
+      ppw->twokappam[l] = sqrt((1.-m*m/l/l)*(l*l-4.)*MAX(1.-pba->K*l*l/q2,0.) );
+    }
+
+    //For the skappalm when s=0 we distinguish the case m=0 and m=2 
+    if ((ppt->has_scalars == _TRUE_) && (index_md == ppt->index_md_scalars)) {
+      for (l = 0; l<=ppw->max_l_max; l++){
+	ppw->zerokappam[l] = l* sqrt( MAX(1.-pba->K*l*l/q2,0.) );
+      }
+    }
+    if ((ppt->has_tensors == _TRUE_) && (index_md == ppt->index_md_tensors)) {
+      m=2.;
+      ppw->zerokappam[0] = 0.;
+      ppw->zerokappam[1] = 0.;
+      ppw->zerokappam[2] = 0.;
+      for (l = 3; l<=ppw->max_l_max; l++){
+	ppw->zerokappam[l] = sqrt((l*l-m*m)*MAX(1.-pba->K*l*l/q2,0.) );
+      }
     }
   }
 
@@ -2535,9 +2572,16 @@ int perturb_prepare_output(struct background * pba,
       class_store_columntitle(ppt->scalar_titles,"delta_g",_TRUE_);
       class_store_columntitle(ppt->scalar_titles,"theta_g",_TRUE_);
       class_store_columntitle(ppt->scalar_titles,"shear_g",_TRUE_);
-      class_store_columntitle(ppt->scalar_titles,"pol0_g",_TRUE_);
-      class_store_columntitle(ppt->scalar_titles,"pol1_g",_TRUE_);
-      class_store_columntitle(ppt->scalar_titles,"pol2_g",_TRUE_);
+      //Pitrou. Again we differentiate the multipoles that we output depending on the type of hierarchy
+      //We could decide to output more multipoles in the TAM hierarchy
+      if (ppt->hierarchy == optimal) {
+	class_store_columntitle(ppt->scalar_titles,"pol0_g",_TRUE_);
+	class_store_columntitle(ppt->scalar_titles,"pol1_g",_TRUE_);
+	class_store_columntitle(ppt->scalar_titles,"pol2_g",_TRUE_);
+      }
+      else {
+	class_store_columntitle(ppt->scalar_titles,"E2",_TRUE_);
+      }
       class_store_columntitle(ppt->scalar_titles,"delta_b",_TRUE_);
       class_store_columntitle(ppt->scalar_titles,"theta_b",_TRUE_);
       class_store_columntitle(ppt->scalar_titles,"psi",_TRUE_);
@@ -2587,9 +2631,14 @@ int perturb_prepare_output(struct background * pba,
       class_store_columntitle(ppt->tensor_titles,"delta_g",_TRUE_);
       class_store_columntitle(ppt->tensor_titles,"shear_g",_TRUE_);
       class_store_columntitle(ppt->tensor_titles,"l4_g",_TRUE_);
-      class_store_columntitle(ppt->tensor_titles,"pol0_g",_TRUE_);
-      class_store_columntitle(ppt->tensor_titles,"pol2_g",_TRUE_);
-      class_store_columntitle(ppt->tensor_titles,"pol4_g",_TRUE_);
+      if (ppt->hierarchy == optimal) {
+	class_store_columntitle(ppt->tensor_titles,"pol0_g",_TRUE_);
+	class_store_columntitle(ppt->tensor_titles,"pol2_g",_TRUE_);
+	class_store_columntitle(ppt->tensor_titles,"pol4_g",_TRUE_);
+      }
+      else {
+	class_store_columntitle(ppt->tensor_titles,"E2",_TRUE_);
+      }
       class_store_columntitle(ppt->tensor_titles,"H (gw)",_TRUE_);
       class_store_columntitle(ppt->tensor_titles,"Hdot (gwdot)",_TRUE_);
 
@@ -4125,17 +4174,23 @@ int perturb_vector_init(
         if (ppt->perturbations_verbose>2)
           fprintf(stdout,"Mode k=%e: switch off tight-coupling approximation at tau=%e\n",k,tau);
 
-        ppv->y[ppv->index_pt_delta_g] = _SQRT6_*4./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
-        // 12.08.2019: -4/3 corrected into sqrt(6)*4/3, credits C. Pitrou
+	 if (ppt->hierarchy == optimal) {
+	   ppv->y[ppv->index_pt_delta_g] = sqrt(6)*4./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
+	   //Modified by Pitrou. The relation used is F_0^(2) = sqrt(6)*4/3* H'/kappa' in tight coupling
+	 }
+	 else {
+	   ppv->y[ppv->index_pt_shear_g] = 2./5.*(-4./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
+	 }
 
         // in perturb_vector_init, for tensors, when switching off tca approxmation,
         // provide initial conditions to polarisation, given by tca
         if (ppt->hierarchy == optimal) {
-          ppv->y[ppv->index_pt_pol0_g] = -_SQRT6_/3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
-          // 12.08.2019: 1/3 corrected into -sqrt(6)/3, credits C. Pitrou
+          ppv->y[ppv->index_pt_pol0_g] = -sqrt(2./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
+	  //Pitrou. I have put G_0^(2) = -sqrt(2/3)* H'/kappa' in tight-coupling 
         }
         else {
-          ppv->y[ppv->index_pt_E2] = _SQRT6_/3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa]; //TBC
+          ppv->y[ppv->index_pt_E2] = sqrt(2./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa]; 
+	  //Pitrou. I have put E_2^(2) = sqrt(2/3)* H'/kappa' in tight-coupling 
         }
       }
 
@@ -5899,10 +5954,19 @@ int perturb_total_stress_energy(
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) { /* if radiation streaming approximation is off */
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) { /* if tight-coupling approximation is off */
 
-        ppw->gw_source += (-_SQRT6_*4*a2*ppw->pvecback[pba->index_bg_rho_g]*
+
+	if (ppt->hierarchy == optimal) {
+	  ppw->gw_source += (-_SQRT6_*4*a2*ppw->pvecback[pba->index_bg_rho_g]*
                            (1./15.*y[ppw->pv->index_pt_delta_g]+
                             4./21.*y[ppw->pv->index_pt_shear_g]+
                             1./35.*y[ppw->pv->index_pt_l3_g+1]));
+	}
+	else {
+	  //Pitrou. In the TAM hierarchy, the shear is really the shear with the relation shear = 2/5 \Theta_2
+	  //We then use B27 of 1305.3261 so as to relate \Theta_2^(2) = -10/sqrt(6)*(1/10*F_0^(2) +1/7*F_2^(2) +3/70*F_4^(2)) to relate both methods
+	  ppw->gw_source += (4*a2*ppw->pvecback[pba->index_bg_rho_g]*
+			     (y[ppw->pv->index_pt_shear_g]));
+	}
       }
     }
 
@@ -6432,7 +6496,7 @@ int perturb_sources(
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) {
 
         // in perturb_sources, for tensors,
-        // scalar sources in absence of approximations (no tca, no rsa)
+        // scalar sources in absence of approximations (no tca, no rsa). This is B42 of 1305.3261.
         if (ppt->hierarchy == optimal) {
           P = -(1./10.*y[ppw->pv->index_pt_delta_g]
                 +2./7.*y[ppw->pv->index_pt_shear_g]
@@ -6442,20 +6506,21 @@ int perturb_sources(
                 -3./70.*y[ppw->pv->index_pt_pol0_g+4])
             /sqrt(6.);
         }
-        else {
-          P = (-(y[ppw->pv->index_pt_delta_g]+20./7.*y[ppw->pv->index_pt_shear_g]+3./7.*y[ppw->pv->index_pt_delta_g+4])/_SQRT6_
-                -_SQRT6_*y[ppw->pv->index_pt_E2])/10.;
+        else {	  
+	  //Pitrou. P = 1/10*(Theta_2 -sqrt(6) E_2). With Theta_2  = 5/2 Shear. 
+	  P = (5./2.*y[ppw->pv->index_pt_shear_g]- sqrt(6.)*y[ppw->pv->index_pt_E2])/10;
         }
 
       }
       else {
-        if (ppt->hierarchy == optimal) {
-          P = -1./3.*_SQRT6_*y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
-          // factor 2/5 -> -1/3; credits C. Pitrou
-        }
-        else {
-          P = -1./3.*_SQRT6_*y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa]; //TBC
-        }
+	//Commented the switching between hierarchies since the expression is the same for both cases
+	//        if (ppt->hierarchy == optimal) {
+	  P = -1./3.*y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
+	  //Pitrou. In tight coupling we have P = -1/3 H'/kappa'.
+	  //        }
+	  //else {
+          //P = -1./3.*y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa]; 
+	  //}
       }
     }
     else {
@@ -6464,7 +6529,7 @@ int perturb_sources(
 
     /* tensor temperature */
     if (ppt->has_source_t == _TRUE_) {
-      _set_source_(ppt->index_tp_t2) = - y[ppw->pv->index_pt_gwdot] * pvecthermo[pth->index_th_exp_m_kappa] + pvecthermo[pth->index_th_g] * P;
+      _set_source_(ppt->index_tp_t2) = -1.*y[ppw->pv->index_pt_gwdot] * pvecthermo[pth->index_th_exp_m_kappa] + pvecthermo[pth->index_th_g] * P;
     }
 
     /* tensor polarization */
@@ -6524,7 +6589,7 @@ int perturb_print_variables(double tau,
   double * pvecthermo;
   double * pvecmetric;
 
-  double delta_g,theta_g,shear_g,l4_g,pol0_g,pol1_g,pol2_g,pol4_g;
+  double delta_g,theta_g,shear_g,l4_g,pol0_g,pol1_g,pol2_g,pol4_g,E2;
   double delta_b,theta_b;
   double delta_cdm=0.,theta_cdm=0.;
   double delta_dcdm=0.,theta_dcdm=0.;
@@ -6632,28 +6697,45 @@ int perturb_print_variables(double tau,
     if (ppw->approx[ppw->index_ap_rsa]==(int)rsa_off) {
       if (ppw->approx[ppw->index_ap_tca]==(int)tca_on) {
         shear_g = ppw->tca_shear_g;
-        //l3_g = 6./7.*k/pvecthermo[pth->index_th_dkappa]*ppw->tca_shear_g;
-        pol0_g = 2.5*ppw->tca_shear_g;
-        pol1_g = 7./12.*6./7.*k/pvecthermo[pth->index_th_dkappa]*ppw->tca_shear_g;
-        pol2_g = 0.5*ppw->tca_shear_g;
-        //pol3_g = 0.25*6./7.*k/pvecthermo[pth->index_th_dkappa]*ppw->tca_shear_g;
+	//We do not store the same multipoles in the optimal hierarchy case and in the TAM hierarchy case.
+	//To build the source term one needs at least G_0 G_2 and G_4 in the optimal hierarchy, but in the TAM case, E_2 is enough.
+	if (ppt->hierarchy == optimal) {
+	  //l3_g = 6./7.*k/pvecthermo[pth->index_th_dkappa]*ppw->tca_shear_g;
+	  pol0_g = 2.5*ppw->tca_shear_g;
+	  pol1_g = 7./12.*6./7.*k/pvecthermo[pth->index_th_dkappa]*ppw->tca_shear_g;
+	  pol2_g = 0.5*ppw->tca_shear_g;
+	  //pol3_g = 0.25*6./7.*k/pvecthermo[pth->index_th_dkappa]*ppw->tca_shear_g;
+	}
+	else {
+	  E2 = -5./4./sqrt(6.)*3.*ppw->tca_shear_g;
+	}
       }
       else {
         shear_g = y[ppw->pv->index_pt_shear_g];
-        //l3_g = y[ppw->pv->index_pt_l3_g];
-        pol0_g = y[ppw->pv->index_pt_pol0_g];
-        pol1_g = y[ppw->pv->index_pt_pol1_g];
-        pol2_g = y[ppw->pv->index_pt_pol2_g];
-        //pol3_g = y[ppw->pv->index_pt_pol3_g];
+	if (ppt->hierarchy == optimal) {
+	  //l3_g = y[ppw->pv->index_pt_l3_g];
+	  pol0_g = y[ppw->pv->index_pt_pol0_g];
+	  pol1_g = y[ppw->pv->index_pt_pol1_g];
+	  pol2_g = y[ppw->pv->index_pt_pol2_g];
+	  //pol3_g = y[ppw->pv->index_pt_pol3_g];
+	}
+	else {
+	  E2 = y[ppw->pv->index_pt_E2];
+	}
       }
     }
     else {
       shear_g = 0;
-      //l3_g = 0;
-      pol0_g = 0;
-      pol1_g = 0;
-      pol2_g = 0;
-      //pol3_g = 0.;
+      if (ppt->hierarchy == optimal) {
+	//l3_g = 0;
+	pol0_g = 0;
+	pol1_g = 0;
+	pol2_g = 0;
+	//pol3_g = 0.;
+      }
+      else {
+	E2 = 0;
+      }
     }
 
     if (pba->has_ur == _TRUE_) {
@@ -6862,9 +6944,16 @@ int perturb_print_variables(double tau,
     class_store_double(dataptr, delta_g, _TRUE_, storeidx);
     class_store_double(dataptr, theta_g, _TRUE_, storeidx);
     class_store_double(dataptr, shear_g, _TRUE_, storeidx);
-    class_store_double(dataptr, pol0_g, _TRUE_, storeidx);
-    class_store_double(dataptr, pol1_g, _TRUE_, storeidx);
-    class_store_double(dataptr, pol2_g, _TRUE_, storeidx);
+    //In the optimal hierarchy we output 3 columns for G_0, G_1 and G_2 respectively, whereas we use only E_2 in the TAM case
+    //We could definetly take a different choice and outpu more polarization multipoles in the TAM hierarchy case.
+    if (ppt->hierarchy == optimal) {
+      class_store_double(dataptr, pol0_g, _TRUE_, storeidx);
+      class_store_double(dataptr, pol1_g, _TRUE_, storeidx);
+      class_store_double(dataptr, pol2_g, _TRUE_, storeidx);
+    }
+    else {
+      class_store_double(dataptr, E2, _TRUE_, storeidx);
+    }
     class_store_double(dataptr, delta_b, _TRUE_, storeidx);
     class_store_double(dataptr, theta_b, _TRUE_, storeidx);
     class_store_double(dataptr, psi, _TRUE_, storeidx);
@@ -6911,28 +7000,56 @@ int perturb_print_variables(double tau,
         delta_g = y[ppw->pv->index_pt_delta_g];
         shear_g = y[ppw->pv->index_pt_shear_g];
         l4_g = y[ppw->pv->index_pt_delta_g+4];
-        pol0_g = y[ppw->pv->index_pt_pol0_g];
-        pol2_g = y[ppw->pv->index_pt_pol2_g];
-        pol4_g = y[ppw->pv->index_pt_pol0_g+4];
+	//In the tensor case, we output G_0, G_2 and G_4 for the optimal hierarchy and only E_2 in the TAM hierarchy
+	//We could decide to output more multipoles in the TAM case.
+	 if (ppt->hierarchy == optimal) {
+	   pol0_g = y[ppw->pv->index_pt_pol0_g];
+	   pol2_g = y[ppw->pv->index_pt_pol2_g];
+	   pol4_g = y[ppw->pv->index_pt_pol0_g+4];
+	 }
+	 else {
+	   E2 = y[ppw->pv->index_pt_E2]; 
+	 }
       }
       else {
-        delta_g = _SQRT6_*4./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa]; //TBC
-        // factor -4/3 -> sqrt(6)*4/3; credits C. Pitrou
-        shear_g = 0.;
-        l4_g = 0.;
-        pol0_g = -_SQRT6_/3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa]; //TBC
-        // factor 1/3 -> -sqrt(6)/3; credits C. Pitrou
-        pol2_g = 0.;
-        pol4_g = 0.;
+	if (ppt->hierarchy == optimal) {	
+	  // This is F_0^(2) = 4/3*sqrt(6) H'/kappa'. Modified by Pitrou.
+	  delta_g = 4./3.*sqrt(6)*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa];
+	  shear_g = 0.;
+	}
+	//We recall that we use the same moments names for the TAM hierarchy in the scalar case.
+	//But the difference is that now the shear is really the shear for the tensor case.
+	else {
+	  delta_g = 0;//For tensor modes there is no l=0 and l=1 at all times (they do ot exist).
+	  //The shear is such that  'shear = 2/5Theta_2'. The tight coupling gives Theta_2 = -4/3 H'/kappa'.
+	  // See also B27 of 1305.3261 to related this tight coupling to the one of the optimal hierarchy.
+	  shear_g = 2./5.*(-4./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa];
+	}
+	if (ppt->hierarchy == optimal) {
+	  l4_g = 0.;
+	  pol0_g = -sqrt(2./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa];
+	  //Pitrou. Tightcoupling gives G_0^(2) = -sqrt(2/3) H'/kappa'
+	  pol2_g = 0.; 
+	  pol4_g = 0.;
+	}
+	else {
+	  //Pitrou. In the otimal hierarchy E2 = sqrt(2/3)H'/kappa' in tight coupling
+	  E2 = sqrt(2./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa];
+	}
       }
     }
     else {
       delta_g = 0.;
       shear_g = 0.;
       l4_g = 0.;
-      pol0_g = 0.;
-      pol2_g = 0.;
-      pol4_g = 0.;
+      if (ppt->hierarchy == optimal) {
+	pol0_g = 0.;
+	pol2_g = 0.;
+	pol4_g = 0.;
+      }
+      else {
+	E2 = 0.;
+      }
     }
 
     if (ppt->evolve_tensor_ur == _TRUE_){
@@ -6964,9 +7081,15 @@ int perturb_print_variables(double tau,
     class_store_double(dataptr, delta_g, _TRUE_, storeidx);
     class_store_double(dataptr, shear_g, _TRUE_, storeidx);
     class_store_double(dataptr, l4_g, _TRUE_, storeidx);
-    class_store_double(dataptr, pol0_g, _TRUE_, storeidx);
-    class_store_double(dataptr, pol2_g, _TRUE_, storeidx);
-    class_store_double(dataptr, pol4_g, _TRUE_, storeidx);
+    //Again we must differentiate the optimal and TAM cases as we do not output the same multipoles.
+    if (ppt->hierarchy == optimal) {
+      class_store_double(dataptr, pol0_g, _TRUE_, storeidx);
+      class_store_double(dataptr, pol2_g, _TRUE_, storeidx);
+      class_store_double(dataptr, pol4_g, _TRUE_, storeidx);
+    }
+    else {
+      class_store_double(dataptr, E2, _TRUE_, storeidx);
+    }
     class_store_double(dataptr, y[ppw->pv->index_pt_gw], _TRUE_, storeidx);
     class_store_double(dataptr, y[ppw->pv->index_pt_gwdot], _TRUE_, storeidx);
 
@@ -7087,6 +7210,7 @@ int perturb_derivs(double tau,
   double * pvecmetric;
   double * s_l;
   double * twokappam;
+  double * zerokappam;
   struct perturb_vector * pv;
 
   /* short-cut notations for the perturbations */
@@ -7137,6 +7261,7 @@ int perturb_derivs(double tau,
 
   s_l = ppw->s_l;
   twokappam = ppw->twokappam;
+  zerokappam = ppw->zerokappam;
   pvecback = ppw->pvecback;
   pvecthermo = ppw->pvecthermo;
   pvecmetric = ppw->pvecmetric;
@@ -7348,7 +7473,7 @@ int perturb_derivs(double tau,
           P0 = (y[pv->index_pt_pol0_g] + y[pv->index_pt_pol2_g] + 2.*s_l[2]*y[pv->index_pt_shear_g])/8.;
         }
         else {
-          /* 3 hierarchies */
+          /* With the TAM hierarachy itis P=1/10*(T_2 -sqrt(6) E_2), using that  5/2shear=T_2 */
           P0 = (5./2. * ppw->s_l[2] * y[ppw->pv->index_pt_shear_g]- sqrt(6.) * y[ppw->pv->index_pt_E2])/10.;
         }
 
@@ -7462,30 +7587,18 @@ int perturb_derivs(double tau,
             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
         }
         else {
-          // 1st coeff: k/(2.*l+1)*l*s_l[l] --> k*s_l[l]: multiply by (2l+1)/l
-          // 2nd coeff: -k/(2.*l+1)*(l+1.)*s_l[l+1] --> -k*(l+1)*cotKgen: multiply by (2l+1)/s_l[l+1]*cotgen
+          /** - Pitrou-Riazuelo closure. See the paper by Pitrou-Pereira-Lesgourgues 2020 (in prep) for details.
+	      We have added the -\kappa'*multipole term, with no effect at all since the closure is precisely meant to be effective when there is free streaming.
+              Note that due to the definition of cotKgen, it must be multiplied by k and not nu here.*/
+          dy[pv->index_pt_E2+l-2] = (sqrt(k2+pba->K)*
+	   (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_E2+l-3])
+	   -(l+3.)*k*cotKgen*y[pv->index_pt_E2+l-2]
+	     -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2]);
 
-          // first guess
-          /*
-          dy[pv->index_pt_E0+l] = sqrt(k2+pba->K)*
-            (twokappam[l]/l*y[pv->index_pt_E0+l-1]-(l+1.)/(2.*l+3.)*(2.*l+1.)*cotKgen*y[pv->index_pt_E0+l])
-            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E0+l];
-
-          dy[pv->index_pt_B0+l] = sqrt(k2+pba->K)*
-            (twokappam[l]/l*y[pv->index_pt_B0+l-1]-(l+1.)/(2.*l+3.)*(2.*l+1.)*cotKgen*y[pv->index_pt_B0+l])
-            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B0+l];
-          */
-
-          // Pitrou-Riazuelo
-          dy[pv->index_pt_E2+l-2] = sqrt(k2+pba->K)*
-            (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_E2+l-3]
-             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2])
-             -(l+3.)*k*cotKgen*y[pv->index_pt_E2+l-2];
-
-          dy[pv->index_pt_B2+l-2] = sqrt(k2+pba->K)*
-            (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3]
-             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2])
-            -(l+3.)*k*cotKgen*y[pv->index_pt_B2+l-2];
+          dy[pv->index_pt_B2+l-2] = (sqrt(k2+pba->K)*
+            (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3])
+            -(l+3.)*k*cotKgen*y[pv->index_pt_B2+l-2]
+	    -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2]);
 
         }
       }
@@ -7495,7 +7608,6 @@ int perturb_derivs(double tau,
       else {
 
         /** - -----> in that case, only need photon velocity */
-
 
         /* perturbed recombination has an impact **/
         dy[pv->index_pt_theta_g] =
@@ -8052,47 +8164,83 @@ int perturb_derivs(double tau,
              );
           */
         }
-        else {
-          P2 = (-(delta_g+20./7.*shear_g+3./7.*y[pv->index_pt_delta_g+4])/_SQRT6_
-                -_SQRT6_*y[ppw->pv->index_pt_E2])/10.;
+        else {	  
+	  //Pitrou. P = 1/10*(Theta_2 - sqrt(6) E_2) with Theta_2 = 5/2 shear
+	  P2 = (5./2.*shear_g  - sqrt(6.) * y[ppw->pv->index_pt_E2])/10.;
         }
 
-        /* photon density (delta_g = F_0) */
-        dy[pv->index_pt_delta_g] =
-          -4./3.*theta_g
-          -pvecthermo[pth->index_th_dkappa]*(delta_g+_SQRT6_*P2)
-          //+y[pv->index_pt_gwdot];
-          +_SQRT6_*y[pv->index_pt_gwdot];  //TBC
+	 if (ppt->hierarchy == optimal) {
 
-        /* photon velocity (theta_g = (3k/4)*F_1) */
-        dy[pv->index_pt_theta_g] =
-          k2*(delta_g/4.-s_l[2]*shear_g)
-          -pvecthermo[pth->index_th_dkappa]*theta_g;
+	   /* photon density (delta_g = F_0) */
+	   dy[pv->index_pt_delta_g] =
+	     -4./3.*theta_g
+	     -pvecthermo[pth->index_th_dkappa]*(delta_g+_SQRT6_*P2)
+	     //+y[pv->index_pt_gwdot];
+	     +_SQRT6_*y[pv->index_pt_gwdot];  //TBC
+	   
+	   /* photon velocity (theta_g = (3k/4)*F_1) */
+	   dy[pv->index_pt_theta_g] =
+	     k2*(delta_g/4.-s_l[2]*shear_g)
+	     -pvecthermo[pth->index_th_dkappa]*theta_g;
+	   
+	   /* photon shear (shear_g = F_2/2) */
+	   dy[pv->index_pt_shear_g] =
+	     4./15.*s_l[2]*theta_g-3./10.*k*s_l[3]*y[pv->index_pt_shear_g+1]
+	     -pvecthermo[pth->index_th_dkappa]*shear_g;
+	   
+	   /* photon l=3 */
+	   dy[pv->index_pt_l3_g] =
+	     k/7.*(6.*s_l[3]*shear_g-4.*s_l[4]*y[pv->index_pt_l3_g+1])
+	     -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l3_g];
+	   
+	   /* additional momenta in Boltzmann hierarchy (beyond l=0,1,2,3,4) */
+	   for (l=4; l < pv->l_max_g; l++)
+	     dy[pv->index_pt_delta_g+l] =
+	       k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_delta_g+l-1]
+			    -(l+1.)*s_l[l+1]*y[pv->index_pt_delta_g+l+1])
+	       -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+	   
+	   /* l=lmax */
+	   l = pv->l_max_g;
+	   dy[pv->index_pt_delta_g+l] =
+	     k*(s_l[l]*y[pv->index_pt_delta_g+l-1]
+		-(1.+l)*cotKgen*y[pv->index_pt_delta_g+l])
+	     - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+	 }
+	 else {
+	   //Pitrou. For the TAM hierrachy, we use the same set of indices for the temperature hierarchy. That is the same set of indice for the F_l and the \Theta_l
+	   //However in the tensor case there is no l=0 nor l=1, and we set their associated multipoles to 0
+	   //The index for l=2 which is the shear_g index, corresponds to shear_g = 2/5*Theta_2 and then beyond l>=3 these are the Theta_l.
+	   dy[pv->index_pt_delta_g] = 0;
+	   
+	   dy[pv->index_pt_theta_g] = 0;
+	   
+	   dy[pv->index_pt_shear_g] = 2./5.*sqrt(MAX(0,k2+3.*pba->K))*
+	     (-zerokappam[3]/7.*y[pv->index_pt_shear_g+1])
+	     -pvecthermo[pth->index_th_dkappa]*(shear_g - (2./5.)*P2)
+	     -(2./5.)*y[pv->index_pt_gwdot];
 
-        /* photon shear (shear_g = F_2/2) */
-        dy[pv->index_pt_shear_g] =
-          4./15.*s_l[2]*theta_g-3./10.*k*s_l[3]*y[pv->index_pt_shear_g+1]
-          -pvecthermo[pth->index_th_dkappa]*shear_g;
+	   dy[pv->index_pt_l3_g] =sqrt(MAX(0,k2+3.*pba->K))*
+	     (-zerokappam[4]/9.*y[pv->index_pt_l3_g+1]
+	      +zerokappam[3]/5.*(5./2.*shear_g))
+	      -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l3_g];
 
-        /* photon l=3 */
-        dy[pv->index_pt_l3_g] =
-          k/7.*(6.*s_l[3]*shear_g-4.*s_l[4]*y[pv->index_pt_l3_g+1])
-          -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l3_g];
+	   for (l=4; l < pv->l_max_g; l++)
+	     dy[pv->index_pt_delta_g+l] =sqrt(MAX(0,k2+3.*pba->K))*
+	       (-zerokappam[l+1]/(2.*l+3)*y[pv->index_pt_delta_g+l+1]
+		+zerokappam[l]/(2.*l-1)*y[pv->index_pt_delta_g+l-1])
+	      -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
 
-        /* additional momenta in Boltzmann hierarchy (beyond l=0,1,2,3,4) */
-        for (l=4; l < pv->l_max_g; l++)
-          dy[pv->index_pt_delta_g+l] =
-            k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_delta_g+l-1]
-                         -(l+1.)*s_l[l+1]*y[pv->index_pt_delta_g+l+1])
-            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
 
-        /* l=lmax */
-        l = pv->l_max_g;
-        dy[pv->index_pt_delta_g+l] =
-          k*(s_l[l]*y[pv->index_pt_delta_g+l-1]
-             -(1.+l)*cotKgen*y[pv->index_pt_delta_g+l])
-          - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
-
+	   /* l=lmax */
+	   l = pv->l_max_g;
+	   dy[pv->index_pt_delta_g+l] = (sqrt(MAX(0,k2+3.*pba->K))*
+	    (zerokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_delta_g+l-1]))
+             -(l+3.)*k*cotKgen*y[pv->index_pt_delta_g+l]
+	     -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+	   
+	 }
+	
         // in perturb_derivs, for tensors, Boltzmann hierarchy
 
         if (ppt->hierarchy == optimal) {
@@ -8112,40 +8260,26 @@ int perturb_derivs(double tau,
           }
         }
         else {
-
-        // in perturb_derivs, for tensors, Boltzmann hierarchy
-
-          dy[pv->index_pt_E2] = sqrt(MAX(k2+3.*pba->K,0.))*
+	  //Implementation of the TAM hierarchy with new set of indices for electric and magnetic type multipoles
+	  
+          dy[pv->index_pt_E2] = sqrt(MAX(0,k2+3.*pba->K))*
             (-4./2./3.*y[pv->index_pt_B2]
              -twokappam[3]/7.*y[pv->index_pt_E3])
             -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_E2]+sqrt(6.) * P2);
 
-          dy[pv->index_pt_B2] = sqrt(MAX(k2+3.*pba->K,0.))*
+          dy[pv->index_pt_B2] = sqrt(MAX(0,k2+3.*pba->K))*
             (4./2./3.*y[pv->index_pt_E2]
              -twokappam[3]/7.*y[pv->index_pt_B3])
             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2];
 
-          /*
-          class_test(twokappam[3]!=sqrt((1.-4./3./3.)*(3.*3.-4.)),
-                     ppt->error_message,
-                     "%e %e",twokappam[3],sqrt((1.-4./3./3.)*(3.*3.-1.)));
-          */
-
           for (l=3; l < pv->l_max_pol_g; l++) {
-
-            /*
-            class_test(twokappam[l]!=sqrt((1.-4./l/l)*(l*l-4.)),
-                       ppt->error_message,
-                       "%e %e",twokappam[l],sqrt((1.-4./l/l)*(l*l-1.)));
-            */
-
-            dy[pv->index_pt_E2+l-2] = sqrt(MAX(k2+3.*pba->K,0.))*
+            dy[pv->index_pt_E2+l-2] = sqrt(MAX(0,k2+3.*pba->K))*
               (twokappam[l]/(2.*l-1.)*y[pv->index_pt_E2+l-3]
                -4./l/(l+1.)*y[pv->index_pt_B2+l-2]
                -twokappam[l+1]/(2.*l+3.)*y[pv->index_pt_E2+l-1])
               -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2];
 
-            dy[pv->index_pt_B2+l-2] = sqrt(MAX(k2+3.*pba->K,0.))*
+            dy[pv->index_pt_B2+l-2] = sqrt(MAX(0,k2+3.*pba->K))*
               (twokappam[l]/(2.*l-1.)*y[pv->index_pt_B2+l-3]
                +4./l/(l+1.)*y[pv->index_pt_E2+l-2]
                -twokappam[l+1]/(2.*l+3.)*y[pv->index_pt_B2+l-1])
@@ -8165,18 +8299,18 @@ int perturb_derivs(double tau,
             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_pol0_g+l];
         }
         else {
-          // Pitrou-Riazuelo
-          dy[pv->index_pt_E2+l-2] = sqrt(MAX(k2+3.*pba->K,0.))*
+          // Pitrou-Riazuelo closure relation as in Pitrou-Pereira-Lesgourgues paper.
+          dy[pv->index_pt_E2+l-2] = (sqrt(MAX(0,k2+3.*pba->K))*
             (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_E2+l-3]
-             +2./l*y[pv->index_pt_B2+l-2]
-             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2])
-             -(l+3.)*k*cotKgen*y[pv->index_pt_E2+l-2];
+             +2./l*y[pv->index_pt_B2+l-2])
+             -(l+3.)*k*cotKgen*y[pv->index_pt_E2+l-2]
+	     -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2]);
 
-          dy[pv->index_pt_B2+l-2] = sqrt(MAX(k2+3.*pba->K,0.))*
-            (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3]
-             -2./l*y[pv->index_pt_E2+l-2]
-             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2])
-             -(l+3.)*k*cotKgen*y[pv->index_pt_B2+l-2];
+          dy[pv->index_pt_B2+l-2] = (sqrt(MAX(0,k2+3.*pba->K))*
+	    (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3]
+             -2./l*y[pv->index_pt_E2+l-2])
+             -(l+3.)*k*cotKgen*y[pv->index_pt_B2+l-2]
+	     -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2]);
         }
       }
     }
