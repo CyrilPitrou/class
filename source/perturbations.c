@@ -4366,7 +4366,6 @@ int perturb_vector_init(
            approximation is switched off) */
         ppv->y[ppv->index_pt_shear_g] = ppw->tca_shear_g;
 
-<<<<<<< HEAD
         ppv->y[ppv->index_pt_l3_g] = 6./7.*k/ppw->pvecthermo[pth->index_th_dkappa]*ppw->s_l[3]*ppv->y[ppv->index_pt_shear_g]; /* second-order tight-coupling approximation for l=3 */
 
         // in perturb_vector_init, for scalars, when switching off tca approxmation,
@@ -4381,13 +4380,6 @@ int perturb_vector_init(
         else {
           ppv->y[ppv->index_pt_E2] = -5.*sqrt(6.)/8.*ppw->s_l[2]*ppv->y[ppv->index_pt_shear_g]; // very minor impact excepted on first multipoles
         }
-=======
-        ppv->y[ppv->index_pt_l3_g] = 6./7.*k/ppw->pvecthermo[pth->index_th_dkappa]*ppw->s_l[3]*ppv->y[ppv->index_pt_shear_g];        /* second-order tight-coupling approximation for l=3 */
-        ppv->y[ppv->index_pt_pol0_g] = 2.5*ppv->y[ppv->index_pt_shear_g];                                                            /* first-order tight-coupling approximation for polarization, l=0 */
-        ppv->y[ppv->index_pt_pol1_g] = k/ppw->pvecthermo[pth->index_th_dkappa]*(5.-2.*ppw->s_l[2])/6.*ppv->y[ppv->index_pt_shear_g]; /* second-order tight-coupling approximation for polarization, l=1 */
-        ppv->y[ppv->index_pt_pol2_g] = 0.5*ppv->y[ppv->index_pt_shear_g];                                                            /* first-order tight-coupling approximation for polarization, l=2 */
-        ppv->y[ppv->index_pt_pol3_g] = k/ppw->pvecthermo[pth->index_th_dkappa]*3.*ppw->s_l[3]/14.*ppv->y[ppv->index_pt_shear_g];     /* second-order tight-coupling approximation for polarization, l=3 */
->>>>>>> 75c9d34f35c03884c10575d45cfeaaab405ed5fc
 
         if (pba->has_ur == _TRUE_) {
 
