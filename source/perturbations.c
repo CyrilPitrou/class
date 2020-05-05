@@ -4436,8 +4436,7 @@ int perturb_vector_init(
 
         /* second-order tight-coupling approximation */
         ppv->y[ppv->index_pt_l3_g] = 6./7.*k/ppw->pvecthermo[pth->index_th_dkappa]*ppw->s_l[3]*ppw->s_l[2]*ppv->y[ppv->index_pt_shear_g];
-        //ppv->y[ppv->index_pt_l3_g] = 6./7.*k/ppw->pvecthermo[pth->index_th_dkappa]*ppw->s_l[3]*ppv->y[ppv->index_pt_shear_g];
-        /* in previous equation, the missing factor s_2 was restored by JL in 2020 */
+         /* in previous equation, the missing factor s_2 was restored by JL in 2020 */
 
         /* tight-coupling approximation for scalar polarisation multipoles */
 
@@ -4445,19 +4444,15 @@ int perturb_vector_init(
         case optimal:
           /* first-order tight-coupling approximation */
           ppv->y[ppv->index_pt_pol0_g] = 5./2.*ppw->s_l[2]*ppv->y[ppv->index_pt_shear_g];
-          //ppv->y[ppv->index_pt_pol0_g] = 5./2.*ppv->y[ppv->index_pt_shear_g];
-          /* second-order tight-coupling approximation */
+           /* second-order tight-coupling approximation */
           ppv->y[ppv->index_pt_pol1_g] = k/ppw->pvecthermo[pth->index_th_dkappa]
              *(5.-2.*ppw->s_l[2])/6.*ppw->s_l[2]*ppv->y[ppv->index_pt_shear_g];
-             //*(5.-2.*ppw->s_l[2])/6.*ppv->y[ppv->index_pt_shear_g];
-          /* first-order tight-coupling approximation */
+           /* first-order tight-coupling approximation */
           ppv->y[ppv->index_pt_pol2_g] = 1./2.*ppw->s_l[2]*ppv->y[ppv->index_pt_shear_g];
-          //ppv->y[ppv->index_pt_pol2_g] = 1./2.*ppv->y[ppv->index_pt_shear_g];
-          /* second-order tight-coupling approximation */
+           /* second-order tight-coupling approximation */
           ppv->y[ppv->index_pt_pol3_g] = k/ppw->pvecthermo[pth->index_th_dkappa]
              *3./14.*ppw->s_l[3]*ppw->s_l[2]*ppv->y[ppv->index_pt_shear_g];
-             //*3./14.*ppw->s_l[3]*ppv->y[ppv->index_pt_shear_g];
-          /* in four previous equations, the missing factor s_2 was restored by JL in 2020 */
+           /* in four previous equations, the missing factor s_2 was restored by JL in 2020 */
           break;
 
         case tam:
@@ -8158,7 +8153,7 @@ int perturb_print_variables(double tau,
           //pol3_g = k/pvecthermo[pth->index_th_dkappa]*3./14.*ppw->s_l[3]*ppw->s_l[2]*ppw->tca_shear_g;
           break;
         case tam:
-          E2 = -5./4./_SQRT6_*3.*ppw->tca_shear_g;
+          E2 = -5.*_SQRT6_/8.*ppw->s_l[2]**ppw->tca_shear_g;
           break;
         }
       }
@@ -9700,7 +9695,7 @@ int perturb_derivs(double tau,
       if (ppw->approx[ppw->index_ap_tca]==(int)tca_off) {
     */
 
-    /* short-cut notations for the tensor perturbations */
+    /* short-cut notations for the vector perturbations */
     delta_g = y[pv->index_pt_delta_g];
     theta_g = y[pv->index_pt_theta_g];
     shear_g = y[pv->index_pt_shear_g];
