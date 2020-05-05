@@ -4023,21 +4023,23 @@ int perturb_vector_init(
 
         ppv->l_max_g = ppr->l_max_g_ten;
 
-        class_define_index(ppv->index_pt_delta_g,_TRUE_,index_pt,1); /* photon density */
-        class_define_index(ppv->index_pt_theta_g,_TRUE_,index_pt,1); /* photon velocity */
-        class_define_index(ppv->index_pt_shear_g,_TRUE_,index_pt,1); /* photon shear */
-        class_define_index(ppv->index_pt_l3_g,_TRUE_,index_pt,ppv->l_max_g-2); /* photon l=3 */
-
         ppv->l_max_pol_g = ppr->l_max_pol_g_ten;
 
         switch (ppt->hierarchy) {
         case optimal:
+          class_define_index(ppv->index_pt_delta_g,_TRUE_,index_pt,1); /* photon density */
+          class_define_index(ppv->index_pt_theta_g,_TRUE_,index_pt,1); /* photon velocity */
+          class_define_index(ppv->index_pt_shear_g,_TRUE_,index_pt,1); /* photon shear */
+          class_define_index(ppv->index_pt_l3_g,_TRUE_,index_pt,ppv->l_max_g-2); /* photon l=3 */
           class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,1); /* photon polarization, l=0 */
           class_define_index(ppv->index_pt_pol1_g,_TRUE_,index_pt,1); /* photon polarization, l=1 */
           class_define_index(ppv->index_pt_pol2_g,_TRUE_,index_pt,1); /* photon polarization, l=2 */
           class_define_index(ppv->index_pt_pol3_g,_TRUE_,index_pt,ppv->l_max_pol_g-2); /* photon polarization, l=3 */
           break;
         case tam:
+          /* tam hierachy does not use first two temperature multipoles for tensors */
+          class_define_index(ppv->index_pt_shear_g,_TRUE_,index_pt,1); /* photon shear */
+          class_define_index(ppv->index_pt_l3_g,_TRUE_,index_pt,ppv->l_max_g-2); /* photon l=3 */
           class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,1);
           class_define_index(ppv->index_pt_E3,_TRUE_,index_pt,ppv->l_max_pol_g-2);
           class_define_index(ppv->index_pt_B2,_TRUE_,index_pt,1);
@@ -4187,13 +4189,22 @@ int perturb_vector_init(
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) { /* if radiation streaming approximation is off */
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) {
 
-        /* we don't need temperature multipoles above except l=0,2,4 */
+        /* we only need the temperature multipoles l=0,2,4 (optimal) or 2,4 (TAM) */
 
-        ppv->used_in_sources[ppv->index_pt_theta_g]=_FALSE_;
-        ppv->used_in_sources[ppv->index_pt_l3_g]=_FALSE_;
-
-        for (index_pt=ppv->index_pt_delta_g+5; index_pt <= ppv->index_pt_delta_g+ppv->l_max_g; index_pt++)
-          ppv->used_in_sources[index_pt]=_FALSE_;
+        switch (ppt->hierarchy) {
+        case optimal:
+          ppv->used_in_sources[ppv->index_pt_theta_g]=_FALSE_;
+          ppv->used_in_sources[ppv->index_pt_l3_g]=_FALSE_;
+          for (index_pt=ppv->index_pt_delta_g+5; index_pt <= ppv->index_pt_delta_g+ppv->l_max_g; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+          break;
+        case tam:
+          /* delta_g, theta_g not passed here: they are not defined in TAM for tensors */
+          ppv->used_in_sources[ppv->index_pt_l3_g]=_FALSE_;
+          for (index_pt=ppv->index_pt_shear_g+3; index_pt <= ppv->index_pt_shear_g-2+ppv->l_max_g; index_pt++)
+            ppv->used_in_sources[index_pt]=_FALSE_;
+          break;
+        }
 
         /* for tensor polarization, with optimal hierarchy, we only need l=0,2,4 (but l =1,3, ... are
            defined only when rsa and tca are off). With TAM hierarchy, we only need E2 */
@@ -9802,20 +9813,19 @@ int perturb_derivs(double tau,
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
       if (ppw->approx[ppw->index_ap_tca]==(int)tca_off) {
 
-        /* short-cut notations for the tensor perturbations */
-        delta_g = y[pv->index_pt_delta_g];
-        theta_g = y[pv->index_pt_theta_g];
-        shear_g = y[pv->index_pt_shear_g];
-
         /* The full hierarchy is different for tensors in the two
            gauges, because, unlike for scalars, we consider that the
            temperature mutipoles l in the code stands for F_l in the
            optimal hierarchy and for Theta_l in the TAM hierarchy */
 
-        /** --> in perturb_derivs, for tensors, P^(2) */
+        /** --> in perturb_derivs, for tensors, short-cut notations and P^(2) */
 
         switch (ppt->hierarchy) {
         case optimal:
+
+          delta_g = y[pv->index_pt_delta_g];
+          theta_g = y[pv->index_pt_theta_g];
+          shear_g = y[pv->index_pt_shear_g];
 
           P2 = -1.0/_SQRT6_*(
                              1./10.*delta_g
@@ -9837,6 +9847,10 @@ int perturb_derivs(double tau,
           */
           break;
         case tam:
+
+          /* remeber that delta_g and theta_g are not defined in this case */
+          shear_g = y[pv->index_pt_shear_g];
+
           /* C. Pitrou (2020): P2 = 1/10*(Theta_2 - sqrt(6) E_2) with Theta_2 = 5/2 shear */
           P2 = (5./2.*shear_g  - _SQRT6_ * y[ppw->pv->index_pt_E2])/10.;
           break;
@@ -9894,10 +9908,6 @@ int perturb_derivs(double tau,
              2/5*Theta_2. For higher mutipoles we directly use the
              variable Theta_l. */
 
-          // TODO: undefine these indices and remove these lines
-          dy[pv->index_pt_delta_g] = 0;
-          dy[pv->index_pt_theta_g] = 0;
-
           /* photon shear (shear_g = 2/5 Theta_2) */
           dy[pv->index_pt_shear_g] = 2./5.*sqrt(MAX(0,k2+3.*pba->K))*
             (-zerokappam[3]/7.*y[pv->index_pt_shear_g+1])
@@ -9905,7 +9915,7 @@ int perturb_derivs(double tau,
             -(2./5.)*y[pv->index_pt_gwdot];
 
           /* photon Theta_3 */
-          dy[pv->index_pt_l3_g] =sqrt(MAX(0,k2+3.*pba->K))*
+          dy[pv->index_pt_l3_g] = sqrt(MAX(0,k2+3.*pba->K))*
             (-zerokappam[4]/9.*y[pv->index_pt_l3_g+1]
              +zerokappam[3]/5.*(5./2.*shear_g))
             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l3_g];
@@ -9913,17 +9923,17 @@ int perturb_derivs(double tau,
           /* additional momenta Theta_l in Boltzmann hierarchy (beyond l=0,1,2,3,4) */
           for (l=4; l < pv->l_max_g; l++)
 
-            dy[pv->index_pt_delta_g+l] =sqrt(MAX(0,k2+3.*pba->K))*
-              (-zerokappam[l+1]/(2.*l+3)*y[pv->index_pt_delta_g+l+1]
-               +zerokappam[l]/(2.*l-1)*y[pv->index_pt_delta_g+l-1])
-              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+            dy[pv->index_pt_shear_g+l-2] = sqrt(MAX(0,k2+3.*pba->K))*
+              (-zerokappam[l+1]/(2.*l+3)*y[pv->index_pt_shear_g+l-1]
+               +zerokappam[l]/(2.*l-1)*y[pv->index_pt_shear_g+l-3])
+              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_shear_g+l-2];
 
           /* Theta_lmax */
           l = pv->l_max_g;
-          dy[pv->index_pt_delta_g+l] = (sqrt(MAX(0,k2+3.*pba->K))*
-                                        (zerokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_delta_g+l-1]))
-            -(l+3.)*k*cotKgen*y[pv->index_pt_delta_g+l]
-            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+          dy[pv->index_pt_shear_g+l-2] = (sqrt(MAX(0,k2+3.*pba->K))*
+                                          (zerokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_shear_g+l-3]))
+            -(l+3.)*k*cotKgen*y[pv->index_pt_shear_g+l-2]
+            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_shear_g+l-2];
           break;
         }
 
