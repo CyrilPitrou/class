@@ -1858,7 +1858,7 @@ int input_read_parameters(
       ppt->hierarchy = optimal;
     }
 
-    if (strstr(string1,"tam") != NULL) {
+    else if ((strstr(string1,"tam") != NULL) || (strstr(string1,"TAM") != NULL)) {
       ppt->hierarchy = tam;
     }
   }
@@ -3306,6 +3306,8 @@ int input_default_params(
   ppt->has_scalars=_TRUE_;
   ppt->has_vectors=_FALSE_;
   ppt->has_tensors=_FALSE_;
+
+  ppt->hierarchy = optimal;
 
   ppt->l_scalar_max=2500;
   ppt->l_vector_max=500;
