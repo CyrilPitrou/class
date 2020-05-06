@@ -480,30 +480,32 @@ struct perturb_vector
      multipoles (delta_g, theta_g, shear_g) have a special definition
      connected to the energy-momentum tensor rather than the
      temperature multipoles themselves. The higher mutipoles are: for
-     scalar modes, F_l (both when using the optimal or tam hierarchy);
-     for vector and tensor modes, F_l (optimal hierarchy) or Theta_l
-     (tam hierarchy) */
+     scalar modes, F_l^(0) (both when using the optimal or tam
+     hierarchy); for vector and tensor modes, F_l^(1,2) (optimal
+     hierarchy) or Theta_l^(1,2) (tam hierarchy) */
 
-  int index_pt_delta_g;   /**< photon temperature multipole F_0 =4*Theta_0,
-                               coinciding with density perturbation in scalar case */
-  int index_pt_theta_g;   /**< photon velocity divergence parameter (related to multipole F_1) */
-  int index_pt_shear_g;   /**< photon shear parameter (related to multipoles F_2) */
+  int index_pt_delta_g;   /**< photon density parameter:
+                               F_0^(0) = 4 Theta_0^(0) (scalar), or 3k/4 F_1^(2) (optimal, tensor), or undefined (tam,tensor) */
+  int index_pt_theta_g;   /**< photon velocity divergence parameter:
+                               3k/4 F_1^(0) = 4 \Theta_1^(0) (scalar), or 3k/4 F_1^(2) (optimal, tensor), or undefined (tam,tensor) */
+  int index_pt_shear_g;   /**< photon shear parameter:
+                               1/(2s_2) F_2^(0) (scalar), or 1/2 F_2^(2) (optimal, tensor), or 2/5 Theta_2^(2) (tam, tensor) */
   int index_pt_l3_g;      /**< third photon multipole (for scalars this is F_3 for whatever hierarchy,
                                for tensors it is F_3 for optimal hierarchy and Theta_3 for tam hierarchy) */
   int l_max_g;            /**< max momentum in Boltzmann hierarchy (at least 3) */
 
   /* Boltzmann hierarchy for photon temperature. For all modes, these
-     multipoles are either G_l (optimal hierarchy) or E_l, B_l (tam
-     hierarchy) */
+     multipoles are either G_l^(m) (optimal hierarchy) or E_l^(m),
+     B_l^(m) (tam hierarchy) */
 
-  int index_pt_pol0_g;    /**< (optimal hierarchy) photon polarization, G_{l=0} */
-  int index_pt_pol1_g;    /**< (optimal hierarchy) photon polarization, G_{l=1} */
-  int index_pt_pol2_g;    /**< (optimal hierarchy) photon polarization, G_{l=2} */
-  int index_pt_pol3_g;    /**< (optimal hierarchy) photon polarization, G_{l=3} */
-  int index_pt_E2;        /**< (tam hierarchy) photon polarization, E_{l=2} */
-  int index_pt_E3;        /**< (tam hierarchy) photon polarization, E_{l=3} */
-  int index_pt_B2;        /**< (tam hierarchy) photon polarization, B_{l=2} */
-  int index_pt_B3;        /**< (tam hierarchy) photon polarization, B_{l=3} */
+  int index_pt_pol0_g;    /**< (optimal hierarchy) photon polarization, G_0 */
+  int index_pt_pol1_g;    /**< (optimal hierarchy) photon polarization, G_1 */
+  int index_pt_pol2_g;    /**< (optimal hierarchy) photon polarization, G_2 */
+  int index_pt_pol3_g;    /**< (optimal hierarchy) photon polarization, G_3 */
+  int index_pt_E2;        /**< (tam hierarchy) photon polarization, E_2 */
+  int index_pt_E3;        /**< (tam hierarchy) photon polarization, E_3 */
+  int index_pt_B2;        /**< (tam hierarchy) photon polarization, B_2 */
+  int index_pt_B3;        /**< (tam hierarchy) photon polarization, B_3 */
   int l_max_pol_g;        /**< max momentum in Boltzmann hierarchy (at least 3) */
 
   int index_pt_delta_b;   /**< baryon density */
