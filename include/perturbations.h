@@ -476,22 +476,22 @@ struct perturbs
 
 struct perturb_vector
 {
-  /* Boltzmann hierarchy for photon temperature. The first three
-     multipoles (delta_g, theta_g, shear_g) have a special definition
-     connected to the energy-momentum tensor rather than the
-     temperature multipoles themselves. The higher mutipoles are: for
-     scalar modes, F_l^(0) (both when using the optimal or tam
-     hierarchy); for vector and tensor modes, F_l^(1,2) (optimal
-     hierarchy) or Theta_l^(1,2) (tam hierarchy) */
+  /* Boltzmann hierarchy for photons. The first three temperature
+     multipoles have a special definition for scalar modes, (delta_g,
+     theta_g, shear_g), connected to the energy-momentum tensor
+     components in the Ma & Bertschinger notations. The other
+     mutipoles are: for the optimal hierarchy, F_l^(m), G_l^(m) of
+     1305.3261, that generalize Ma & Bertschinger; for the TAM
+     hierarchy, Theta_l^(m), E_l^(m), B_l^(m) of astro-ph/9709066 (m=0
+     for scalars, 1 for vectors, 2 for tensors) */
 
-  int index_pt_delta_g;   /**< photon density parameter:
-                               F_0^(0) = 4 Theta_0^(0) (scalar), or 3k/4 F_1^(2) (optimal, tensor), or undefined (tam,tensor) */
-  int index_pt_theta_g;   /**< photon velocity divergence parameter:
-                               3k/4 F_1^(0) = 4 \Theta_1^(0) (scalar), or 3k/4 F_1^(2) (optimal, tensor), or undefined (tam,tensor) */
-  int index_pt_shear_g;   /**< photon shear parameter:
-                               1/(2s_2) F_2^(0) (scalar), or 1/2 F_2^(2) (optimal, tensor), or 2/5 Theta_2^(2) (tam, tensor) */
-  int index_pt_l3_g;      /**< third photon multipole (for scalars this is F_3 for whatever hierarchy,
-                               for tensors it is F_3 for optimal hierarchy and Theta_3 for tam hierarchy) */
+  int index_pt_delta_g;   /**< for scalar modes, photon density parameter: F_0^(0) (optimal) or 4 Theta_0^(0) (tam) */
+  int index_pt_theta_g;   /**< for scalar modes, photon velocity parameter: 3k/4 F_1^(0) (optimal) or k Theta_1^(0) (tam) */
+  int index_pt_shear_g;   /**< for scalar modes, photon shear parameter: 1/(2s_2) F_2^(0) (optimal), or  2/(5s_2) Theta_2^(0) (tam) */
+  int index_pt_l0_g;      /**< for vectors and tensor modes, F_0^(m) (optimal) or nothing (in tam, Theta_0^(m) is only defined for scalars) */
+  int index_pt_l1_g;      /**< for vectors and tensor modes, F_1^(m) (optimal) or Theta_1^(m) (only defined for scalars and vectors) */
+  int index_pt_l2_g;      /**< for vectors and tensor modes, F_2^(m) (optimal) or Theta_2^(m) */
+  int index_pt_l3_g;      /**< for all modes, third photon multipole: F_3^(m) f(optimal) or Theta_3^(m) (tam) */
   int l_max_g;            /**< max momentum in Boltzmann hierarchy (at least 3) */
 
   /* Boltzmann hierarchy for photon temperature. For all modes, these

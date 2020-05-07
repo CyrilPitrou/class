@@ -4034,9 +4034,9 @@ int perturb_vector_init(
 
         switch (ppt->hierarchy) {
         case optimal:
-          class_define_index(ppv->index_pt_delta_g,_TRUE_,index_pt,1); /* photon density */
-          class_define_index(ppv->index_pt_theta_g,_TRUE_,index_pt,1); /* photon velocity */
-          class_define_index(ppv->index_pt_shear_g,_TRUE_,index_pt,1); /* photon shear */
+          class_define_index(ppv->index_pt_l0_g,_TRUE_,index_pt,1); /* photon density */
+          class_define_index(ppv->index_pt_l1_g,_TRUE_,index_pt,1); /* photon velocity */
+          class_define_index(ppv->index_pt_l2_g,_TRUE_,index_pt,1); /* photon shear */
           class_define_index(ppv->index_pt_l3_g,_TRUE_,index_pt,ppv->l_max_g-2); /* photon l=3 */
           class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,1); /* photon polarization, l=0 */
           class_define_index(ppv->index_pt_pol1_g,_TRUE_,index_pt,1); /* photon polarization, l=1 */
@@ -4045,7 +4045,7 @@ int perturb_vector_init(
           break;
         case tam:
           /* tam hierachy does not use first two temperature multipoles for tensors */
-          class_define_index(ppv->index_pt_shear_g,_TRUE_,index_pt,1); /* photon shear */
+          class_define_index(ppv->index_pt_l2_g,_TRUE_,index_pt,1); /* photon shear */
           class_define_index(ppv->index_pt_l3_g,_TRUE_,index_pt,ppv->l_max_g-2); /* photon l=3 */
           class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,1);
           class_define_index(ppv->index_pt_E3,_TRUE_,index_pt,ppv->l_max_pol_g-2);
@@ -4212,7 +4212,7 @@ int perturb_vector_init(
 
         switch (ppt->hierarchy) {
         case optimal:
-          ppv->used_in_sources[ppv->index_pt_theta_g]=_FALSE_;
+          ppv->used_in_sources[ppv->index_pt_l1_g]=_FALSE_;
           ppv->used_in_sources[ppv->index_pt_l3_g]=_FALSE_;
           for (index_pt=ppv->index_pt_delta_g+5; index_pt <= ppv->index_pt_delta_g+ppv->l_max_g; index_pt++)
             ppv->used_in_sources[index_pt]=_FALSE_;
@@ -4220,7 +4220,7 @@ int perturb_vector_init(
         case tam:
           /* delta_g, theta_g not passed here: they are not defined in TAM for tensors */
           ppv->used_in_sources[ppv->index_pt_l3_g]=_FALSE_;
-          for (index_pt=ppv->index_pt_shear_g+3; index_pt <= ppv->index_pt_shear_g-2+ppv->l_max_g; index_pt++)
+          for (index_pt=ppv->index_pt_l2_g+3; index_pt <= ppv->index_pt_l2_g-2+ppv->l_max_g; index_pt++)
             ppv->used_in_sources[index_pt]=_FALSE_;
           break;
         }
@@ -5286,7 +5286,7 @@ int perturb_vector_init(
         case optimal:
 
           /* F_0^(2) of 1305.3261 */
-          ppv->y[ppv->index_pt_delta_g] = _SQRT6_*4./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
+          ppv->y[ppv->index_pt_l0_g] = _SQRT6_*4./3.*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
           // modified by C. Pitrou (2020): use tight-coupling relation F_0^(2) = sqrt(6)*4/3* H'/kappa'
 
           /* G_0^(2) of 1305.3261 */
@@ -5296,8 +5296,8 @@ int perturb_vector_init(
 
         case tam:
 
-          /* 2/5 Theta_2^(2) of astro-ph/9709066 */
-          ppv->y[ppv->index_pt_shear_g] = 2./5.*(-4./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
+          /* Theta_2^(2) of astro-ph/9709066 */
+          ppv->y[ppv->index_pt_l2_g] = (-4./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
 
           /* E_2^(2) of astro-ph/9709066 */
           ppv->y[ppv->index_pt_E2] = sqrt(2./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/ppw->pvecthermo[pth->index_th_dkappa];
@@ -7322,16 +7322,16 @@ int perturb_total_stress_energy(
         switch (ppt->hierarchy) {
         case optimal:
 
-          /* Pi = -4 sqrt(6) [1/15 F_0^(2)/15 + 2/21 F_2(2) + 1/35 F_4^(2)] of 1305.3261, and shear_g = 1/2 F_2^(2) */
+          /* Pi = -4 sqrt(6) [1/15 F_0^(2)/15 + 2/21 F_2(2) + 1/35 F_4^(2)] of 1305.3261 */
           ppw->gw_source += -_SQRT6_*4*a2*ppw->pvecback[pba->index_bg_rho_g]*
-            (1./15.*y[ppw->pv->index_pt_delta_g]+
-             4./21.*y[ppw->pv->index_pt_shear_g]+
+            (1./15.*y[ppw->pv->index_pt_l0_g]+
+             2./21.*y[ppw->pv->index_pt_l2_g]+
              1./35.*y[ppw->pv->index_pt_l3_g+1]);
           break;
 
         case tam:
-          /* Pi = 4 (2/5) Theta_2^(2) of astro-ph/9709066, and shear_g = (2/5) Theta_2^(2) */
-          ppw->gw_source += 4*a2*ppw->pvecback[pba->index_bg_rho_g]*y[ppw->pv->index_pt_shear_g];
+          /* Pi = 8/5 Theta_2^(2) using (40) of astro-ph/9709066 */
+          ppw->gw_source += 8./5.*a2*ppw->pvecback[pba->index_bg_rho_g]*y[ppw->pv->index_pt_l2_g];
           break;
         }
       }
@@ -8005,10 +8005,10 @@ int perturb_sources(
         /* P^(2) exact (no tca, no rsa) */
         switch (ppt->hierarchy) {
         case optimal:
-          /* P^(2) using (2.16c) of 1305.3261, with delta_g = F_0^(2) and shear_g = 1/2 F_2^(2) */
-          P = -(1./10.*y[ppw->pv->index_pt_delta_g]
-                +2./7.*y[ppw->pv->index_pt_shear_g]
-                +3./70.*y[ppw->pv->index_pt_delta_g+4]
+          /* P^(2) using (2.16c) of 1305.3261 */
+          P = -(1./10.*y[ppw->pv->index_pt_l0_g]
+                +1./7.*y[ppw->pv->index_pt_l2_g]
+                +3./70.*y[ppw->pv->index_pt_l0_g+4]
                 -3./5.*y[ppw->pv->index_pt_pol0_g]
                 +6./7.*y[ppw->pv->index_pt_pol2_g]
                 -3./70.*y[ppw->pv->index_pt_pol0_g+4])
@@ -8016,8 +8016,8 @@ int perturb_sources(
           break;
 
         case tam:
-          /* P^(2) using (37) of astro-ph/9709066: 1/10*(Theta_2 -sqrt(6) E_2), with Theta_2^(2)  = 5/2 shear_g */
-          P = (5./2.*y[ppw->pv->index_pt_shear_g] - _SQRT6_*y[ppw->pv->index_pt_E2])/10.;
+          /* P^(2) using (37) of astro-ph/9709066: 1/10*(Theta_2 -sqrt(6) E_2) */
+          P = (y[ppw->pv->index_pt_l2_g] - _SQRT6_*y[ppw->pv->index_pt_E2])/10.;
           break;
         }
       }
@@ -8098,7 +8098,7 @@ int perturb_print_variables(double tau,
   double * pvecthermo;
   double * pvecmetric;
 
-  double delta_g=0.,theta_g=0.,shear_g=0.,l4_g=0.,pol0_g=0.,pol1_g=0.,pol2_g=0.,pol4_g=0.,E2=0.;
+  double delta_g=0.,theta_g=0.,shear_g=0.,l0_g=0.,l2_g=0.,l4_g=0.,pol0_g=0.,pol1_g=0.,pol2_g=0.,pol4_g=0.,E2=0.;
   double delta_b,theta_b;
   double delta_cdm=0.,theta_cdm=0.;
   double delta_idm_dr=0.,theta_idm_dr=0.;
@@ -8589,17 +8589,17 @@ int perturb_print_variables(double tau,
 
         switch (ppt->hierarchy) {
         case optimal:
-          delta_g = y[ppw->pv->index_pt_delta_g]; /* F_0^(2)     of 1305.3261 */
-          shear_g = y[ppw->pv->index_pt_shear_g]; /* 1/2 F_2^(2) of 1305.3261*/
-          l4_g = y[ppw->pv->index_pt_delta_g+4];  /* F_4^(2)     of 1305.3261*/
-          pol0_g = y[ppw->pv->index_pt_pol0_g];   /* G_0^(2)     of 1305.3261*/
-          pol2_g = y[ppw->pv->index_pt_pol2_g];   /* G_2^(2)     of 1305.3261*/
-          pol4_g = y[ppw->pv->index_pt_pol0_g+4]; /* G_4^(2)     of 1305.3261*/
+          l0_g = y[ppw->pv->index_pt_l0_g];       /* F_0^(2) of 1305.3261 */
+          l2_g = y[ppw->pv->index_pt_l2_g];       /* F_2^(2) of 1305.3261*/
+          l4_g = y[ppw->pv->index_pt_l0_g+4];     /* F_4^(2) of 1305.3261*/
+          pol0_g = y[ppw->pv->index_pt_pol0_g];   /* G_0^(2) of 1305.3261*/
+          pol2_g = y[ppw->pv->index_pt_pol2_g];   /* G_2^(2) of 1305.3261*/
+          pol4_g = y[ppw->pv->index_pt_pol0_g+4]; /* G_4^(2) of 1305.3261*/
           break;
         case tam:
-          shear_g = y[ppw->pv->index_pt_shear_g]; /* 2/5 Theta_2^(2) of astro-ph/970906 */
-          l4_g = y[ppw->pv->index_pt_delta_g+4];  /* Theta_4^(2)     of astro-ph/970906 */
-          E2 = y[ppw->pv->index_pt_E2];           /* E_2^(2)         of astro-ph/970906 */
+          l2_g = y[ppw->pv->index_pt_l2_g];       /* Theta_2^(2) of astro-ph/970906 */
+          l4_g = y[ppw->pv->index_pt_l2_g+2];     /* Theta_4^(2) of astro-ph/970906 */
+          E2 = y[ppw->pv->index_pt_E2];           /* E_2^(2)     of astro-ph/970906 */
           break;
         }
       }
@@ -8610,8 +8610,8 @@ int perturb_print_variables(double tau,
         switch (ppt->hierarchy) {
         case optimal:
           /* Modified by C. Pitrou (2020): Tight coupling gives F_0^(2) = 4/3*sqrt(6) H'/kappa' */
-          delta_g = 4./3.*_SQRT6_*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa];
-          shear_g = 0.;
+          l0_g = 4./3.*_SQRT6_*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa];
+          l2_g = 0.;
           l4_g = 0.;
           /* Modified by C. Pitrou (2020). Tight coupling gives G_0^(2) = -sqrt(2/3) H'/kappa' */
           pol0_g = -sqrt(2./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa];
@@ -8620,11 +8620,10 @@ int perturb_print_variables(double tau,
           break;
 
         case tam:
-          /* C. Pitrou (2020): shear_g = 2/5 Theta_2^(2), given that the
-             tight coupling gives Theta_2^(2) = -4/3 H'/kappa'. See also
+          /* C. Pitrou (2020): tight coupling gives Theta_2^(2) = -4/3 H'/kappa'. See also
              B27 of 1305.3261 to relate this tight coupling to the one
              of the optimal hierarchy. */
-          shear_g = 2./5.*(-4./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa];
+          l2_g = (-4./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa];
           l4_g = 0.;
           /* C. Pitrou (2020): E2^(2) = sqrt(2/3)H'/kappa' during tight coupling */
           E2 = sqrt(2./3.)*ppw->pv->y[ppw->pv->index_pt_gwdot]/pvecthermo[pth->index_th_dkappa];
@@ -8638,15 +8637,15 @@ int perturb_print_variables(double tau,
 
       switch (ppt->hierarchy) {
       case optimal:
-        delta_g = 0.;
-        shear_g = 0.;
+        l0_g = 0.;
+        l2_g = 0.;
         l4_g = 0.;
         pol0_g = 0.;
         pol2_g = 0.;
         pol4_g = 0.;
         break;
       case tam:
-        shear_g = 0.;
+        l2_g = 0.;
         l4_g = 0.;
         E2 = 0.;
         break;
@@ -8690,15 +8689,15 @@ int perturb_print_variables(double tau,
 
     switch (ppt->hierarchy) {
     case optimal:
-      class_store_double(dataptr, delta_g, _TRUE_, storeidx);
-      class_store_double(dataptr, shear_g, _TRUE_, storeidx);
+      class_store_double(dataptr, l0_g, _TRUE_, storeidx);
+      class_store_double(dataptr, l2_g, _TRUE_, storeidx);
       class_store_double(dataptr, l4_g, _TRUE_, storeidx);
       class_store_double(dataptr, pol0_g, _TRUE_, storeidx);
       class_store_double(dataptr, pol2_g, _TRUE_, storeidx);
       class_store_double(dataptr, pol4_g, _TRUE_, storeidx);
       break;
     case tam:
-      class_store_double(dataptr, shear_g, _TRUE_, storeidx);
+      class_store_double(dataptr, l2_g, _TRUE_, storeidx);
       class_store_double(dataptr, l4_g, _TRUE_, storeidx);
       class_store_double(dataptr, E2, _TRUE_, storeidx);
       break;
@@ -9900,55 +9899,35 @@ int perturb_derivs(double tau,
         switch (ppt->hierarchy) {
         case optimal:
 
-          delta_g = y[pv->index_pt_delta_g]; /* F_0^(2)      of 1305.3261 */
-          theta_g = y[pv->index_pt_theta_g]; /* 3k/4 F_1^(2) of 1305.3261 */
-          shear_g = y[pv->index_pt_shear_g]; /* 1/2 F_2^(2)  of 1305.3261 */
-
           /* P^(2) using (2.16c) of 1305.3261 */
-          P2 = -1.0/_SQRT6_*(
-                             1./10.*delta_g
-                             +2./7.*shear_g
-                             +3./70.*y[pv->index_pt_delta_g+4]
+          P2 = -1.0/_SQRT6_*(1./10.*y[pv->index_pt_l0_g]
+                             +1./7.*y[pv->index_pt_l2_g]
+                             +3./70.*y[pv->index_pt_l0_g+4]
                              -3./5.*y[pv->index_pt_pol0_g]
                              +6./7.*y[pv->index_pt_pol2_g]
                              -3./70.*y[pv->index_pt_pol0_g+4]);
 
           /* Temperature hierarchy for photons using (2.35) of 1305.3261 with m=2 */
 
-          /* derivative of F_0^(2) using (2.35) of 1305.3261 with l=0 m=2 (remember s_1=1) */
-          dy[pv->index_pt_delta_g] =
-            -4./3.*theta_g
-            -pvecthermo[pth->index_th_dkappa]*(delta_g+_SQRT6_*P2)
+          /* derivative of delta_g = F_0^(2), using (2.35) of 1305.3261 with l=0 m=2 (remember s_1=1) */
+          dy[pv->index_pt_l0_g] =
+            -k*y[pv->index_pt_l1_g]
+            -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l0_g]+_SQRT6_*P2)
             +_SQRT6_*y[pv->index_pt_gwdot];
 
-          /* derivative of 3k/4 F_1^(2) using (2.35) of 1305.3261 with l=1 m=2 (remember s_1=1) */
-          dy[pv->index_pt_theta_g] =
-            k2*(delta_g/4.-s_l[2]*shear_g)
-            -pvecthermo[pth->index_th_dkappa]*theta_g;
-
-          /* derivative of 1/2 F_2^(2) using (2.35) of 1305.3261 with l=2 m=2 */
-          dy[pv->index_pt_shear_g] =
-            4./15.*s_l[2]*theta_g-3./10.*k*s_l[3]*y[pv->index_pt_shear_g+1]
-            -pvecthermo[pth->index_th_dkappa]*shear_g;
-
-          /* derivative of F_3^(2) using (2.35) of 1305.3261 with l=3 m=2 */
-          dy[pv->index_pt_l3_g] =
-            k/7.*(6.*s_l[3]*shear_g-4.*s_l[4]*y[pv->index_pt_l3_g+1])
-            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l3_g];
-
-          /* derivative of F_l^(2) using (2.35) of 1305.3261 with l>3 m=2 */
-          for (l=4; l < pv->l_max_g; l++)
-            dy[pv->index_pt_delta_g+l] =
-              k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_delta_g+l-1]
+          /* derivative of F_l^(2) using (2.35) of 1305.3261 with l>0 m=2 */
+          for (l=1; l < pv->l_max_g; l++)
+            dy[pv->index_pt_l0_g+l] =
+              k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_l0_g+l-1]
                            -(l+1.)*s_l[l+1]*y[pv->index_pt_delta_g+l+1])
-              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l0_g+l];
 
           /* closure relation (2.34) of 1305.3261 */
           l = pv->l_max_g;
-          dy[pv->index_pt_delta_g+l] =
-            k*(s_l[l]*y[pv->index_pt_delta_g+l-1]
-               -(1.+l)*cotKgen*y[pv->index_pt_delta_g+l])
-            - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+          dy[pv->index_pt_l0_g+l] =
+            k*(s_l[l]*y[pv->index_pt_l0_g+l-1]
+               -(1.+l)*cotKgen*y[pv->index_pt_l0_g+l])
+            - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l0_g+l];
 
           /* Polarisation hierarchy for photons using (2.36) of 1305.3261 with m=2 */
 
@@ -9957,7 +9936,7 @@ int perturb_derivs(double tau,
             -k*y[pv->index_pt_pol0_g+1]
             -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_pol0_g]-_SQRT6_*P2);
 
-          /* derivative of G_l^(2) using (2.36) of 1305.3261 with l=0 m=2 */
+          /* derivative of G_l^(2) using (2.36) of 1305.3261 with l>0 m=2 */
           for (l=1; l < pv->l_max_pol_g; l++) {
             dy[pv->index_pt_pol0_g+l] =
               k/(2.*l+1.)*(l*s_l[l]*y[pv->index_pt_pol0_g+l-1]
@@ -9976,49 +9955,39 @@ int perturb_derivs(double tau,
 
         case tam:
 
-          /* remember that multipoles l=0,1 are not defined in this case */
-          shear_g = y[pv->index_pt_shear_g]; /* 2/5 Theta_2^(2) of astro-ph/9709066 */
-
           /* P^(2) using (37) of astro-ph/9709066 */
-          P2 = (5./2.*shear_g  - _SQRT6_ * y[ppw->pv->index_pt_E2])/10.;
+          P2 = (y[ppw->pv->index_pt_l2_g]  - _SQRT6_ * y[ppw->pv->index_pt_E2])/10.;
 
           /* Temperature hierarchy for photons using (33) of astro-ph/9709066 with m=2 */
 
-          /* derivative of 2/5 Theta_2^(2) using (33) of astro-ph/9709066 with l=2 m=2 */
-          dy[pv->index_pt_shear_g] = 2./5.*sqrt(MAX(0,k2+3.*pba->K))*
-            (-zerokappam[3]/7.*y[pv->index_pt_shear_g+1])
-            -pvecthermo[pth->index_th_dkappa]*(shear_g - (2./5.)*P2)
+          /* derivative of Theta_2^(2) using (33) of astro-ph/9709066 with l=2 m=2 */
+          dy[pv->index_pt_l2_g] = sqrt(MAX(0,k2+3.*pba->K))*
+            (-zerokappam[3]/7.*y[pv->index_pt_l2_g+1])
+            -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l2_g] - (2./5.)*P2)
             -(2./5.)*y[pv->index_pt_gwdot];
 
-          /* derivative of Theta_3^(2) using (33) of astro-ph/9709066 with l=3 m=2 */
-          dy[pv->index_pt_l3_g] = sqrt(MAX(0,k2+3.*pba->K))*
-            (-zerokappam[4]/9.*y[pv->index_pt_l3_g+1]
-             +zerokappam[3]/5.*(5./2.*shear_g))
-            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l3_g];
-
-          /* derivative of Theta_l^(2) using (33) of astro-ph/9709066 with l>3 m=2 */
-          for (l=4; l < pv->l_max_g; l++)
-            dy[pv->index_pt_shear_g+l-2] = sqrt(MAX(0,k2+3.*pba->K))*
-              (-zerokappam[l+1]/(2.*l+3)*y[pv->index_pt_shear_g+l-1]
-               +zerokappam[l]/(2.*l-1)*y[pv->index_pt_shear_g+l-3])
-              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_shear_g+l-2];
+          /* derivative of Theta_l^(2) using (33) of astro-ph/9709066 with l>2 m=2 */
+          for (l=3; l < pv->l_max_g; l++)
+            dy[pv->index_pt_l2_g+l-2] = sqrt(MAX(0,k2+3.*pba->K))*
+              (-zerokappam[l+1]/(2.*l+3)*y[pv->index_pt_l2_g+l-1]
+               +zerokappam[l]/(2.*l-1)*y[pv->index_pt_l2_g+l-3])
+              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l2_g+l-2];
 
           /* Pitrou-Riazuelo closure relation using (9) of 2005.xxxxx */
           l = pv->l_max_g;
-          dy[pv->index_pt_shear_g+l-2] = (sqrt(MAX(0,k2+3.*pba->K))*
-                                          (zerokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_shear_g+l-3]))
-            -(l+3.)*k*cotKgen*y[pv->index_pt_shear_g+l-2]
-            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_shear_g+l-2];
+          dy[pv->index_pt_l2_g+l-2] = (sqrt(MAX(0,k2+3.*pba->K))*
+                                          (zerokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_l2_g+l-3]))
+            -(l+3.)*k*cotKgen*y[pv->index_pt_l2_g+l-2]
+            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l2_g+l-2];
 
           /* Polarisation hierarchy for photons using (34) of astro-ph/9709066 with m=2 */
 
-          /* derivative of E_2^(2) using (34) of astro-ph/9709066 with l=2 m=2 */
+          /* derivative of E_2^(2), B_2^(2) using (34) of astro-ph/9709066 with l=2 m=2 */
           dy[pv->index_pt_E2] = sqrt(MAX(0,k2+3.*pba->K))*
             (-4./2./3.*y[pv->index_pt_B2]
              -twokappam[3]/7.*y[pv->index_pt_E3])
             -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_E2]+_SQRT6_ * P2);
 
-          /* derivative of B_2^(2) using (34) of astro-ph/9709066 with l=2 m=2 */
           dy[pv->index_pt_B2] = sqrt(MAX(0,k2+3.*pba->K))*
             (4./2./3.*y[pv->index_pt_E2]
              -twokappam[3]/7.*y[pv->index_pt_B3])
