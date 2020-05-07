@@ -479,19 +479,19 @@ struct perturb_vector
   /* Boltzmann hierarchy for photons. The first three temperature
      multipoles have a special definition for scalar modes, (delta_g,
      theta_g, shear_g), connected to the energy-momentum tensor
-     components in the Ma & Bertschinger notations. The other
+     components in the Ma & Bertschinger notations. Otherwise the
      mutipoles are: for the optimal hierarchy, F_l^(m), G_l^(m) of
      1305.3261, that generalize Ma & Bertschinger; for the TAM
-     hierarchy, Theta_l^(m), E_l^(m), B_l^(m) of astro-ph/9709066 (m=0
-     for scalars, 1 for vectors, 2 for tensors) */
+     hierarchy, Theta_l^(m), E_l^(m), B_l^(m) of astro-ph/9709066
+     (with m=0 for scalars, 1 for vectors, 2 for tensors) */
 
   int index_pt_delta_g;   /**< for scalar modes, photon density parameter: F_0^(0) (optimal) or 4 Theta_0^(0) (tam) */
   int index_pt_theta_g;   /**< for scalar modes, photon velocity parameter: 3k/4 F_1^(0) (optimal) or k Theta_1^(0) (tam) */
   int index_pt_shear_g;   /**< for scalar modes, photon shear parameter: 1/(2s_2) F_2^(0) (optimal), or  2/(5s_2) Theta_2^(0) (tam) */
-  int index_pt_l0_g;      /**< for vectors and tensor modes, F_0^(m) (optimal) or nothing (in tam, Theta_0^(m) is only defined for scalars) */
-  int index_pt_l1_g;      /**< for vectors and tensor modes, F_1^(m) (optimal) or Theta_1^(m) (only defined for scalars and vectors) */
-  int index_pt_l2_g;      /**< for vectors and tensor modes, F_2^(m) (optimal) or Theta_2^(m) */
-  int index_pt_l3_g;      /**< for all modes, third photon multipole: F_3^(m) f(optimal) or Theta_3^(m) (tam) */
+  int index_pt_l0_g;      /**< (optimal hierarchy) F_0^(m) for m=1,2 */
+  int index_pt_l1_g;      /**< (tam hierarchy) Theta_1^(m) for m=1 */
+  int index_pt_l2_g;      /**< (tam hierarchy) Theta_2^(m) for m=2 */
+  int index_pt_l3_g;      // To remove later
   int l_max_g;            /**< max momentum in Boltzmann hierarchy (at least 3) */
 
   /* Boltzmann hierarchy for photon temperature. For all modes, these
@@ -499,13 +499,13 @@ struct perturb_vector
      B_l^(m) (tam hierarchy) */
 
   int index_pt_pol0_g;    /**< (optimal hierarchy) photon polarization, G_0 */
-  int index_pt_pol1_g;    /**< (optimal hierarchy) photon polarization, G_1 */
-  int index_pt_pol2_g;    /**< (optimal hierarchy) photon polarization, G_2 */
-  int index_pt_pol3_g;    /**< (optimal hierarchy) photon polarization, G_3 */
+  int index_pt_pol1_g;    /**< (optimal hierarchy) photon polarization, G_1 */ // To remove later
+  int index_pt_pol2_g;    /**< (optimal hierarchy) photon polarization, G_2 */ // To remove later
+  int index_pt_pol3_g;    /**< (optimal hierarchy) photon polarization, G_3 */ // To remove later
   int index_pt_E2;        /**< (tam hierarchy) photon polarization, E_2 */
-  int index_pt_E3;        /**< (tam hierarchy) photon polarization, E_3 */
+  int index_pt_E3;        /**< (tam hierarchy) photon polarization, E_3 */ // To remove later
   int index_pt_B2;        /**< (tam hierarchy) photon polarization, B_2 */
-  int index_pt_B3;        /**< (tam hierarchy) photon polarization, B_3 */
+  int index_pt_B3;        /**< (tam hierarchy) photon polarization, B_3 */ // To remove later
   int l_max_pol_g;        /**< max momentum in Boltzmann hierarchy (at least 3) */
 
   int index_pt_delta_b;   /**< baryon density */
@@ -521,9 +521,15 @@ struct perturb_vector
   int index_pt_Gamma_fld;  /**< unique dark energy dynamical variable in PPF case */
   int index_pt_phi_scf;  /**< scalar field density */
   int index_pt_phi_prime_scf;  /**< scalar field velocity */
-  int index_pt_delta_ur; /**< density of ultra-relativistic neutrinos/relics */
-  int index_pt_theta_ur; /**< velocity of ultra-relativistic neutrinos/relics */
-  int index_pt_shear_ur; /**< shear of ultra-relativistic neutrinos/relics */
+  int index_pt_delta_ur; /**< for scalar modes, density of ultra-relativistic neutrinos/relics */
+  int index_pt_theta_ur; /**< for scalar modes, velocity of ultra-relativistic neutrinos/relics */
+  int index_pt_shear_ur; /**< for scalar modes, shear of ultra-relativistic neutrinos/relics */
+  int index_pt_l0_ur;    /**< for vectors and tensor modes of ultra-relativistic neutrinos/relics,
+                            F_0^(m) (optimal) or nothing (in tam, Theta_0^(m) is only defined for scalars) */
+  int index_pt_l1_ur;    /**< for vectors and tensor modes of ultra-relativistic neutrinos/relics,
+                            F_1^(m) (optimal) or Theta_1^(m) (only defined for scalars and vectors) */
+  int index_pt_l2_ur;    /**< for vectors and tensor modes of ultra-relativistic neutrinos/relics,
+                            F_2^(m) (optimal) or Theta_2^(m) */
   int index_pt_l3_ur;    /**< l=3 of ultra-relativistic neutrinos/relics */
   int l_max_ur;          /**< max momentum in Boltzmann hierarchy (at least 3) */
   int index_pt_delta_idr; /**< density of interacting dark radiation */
