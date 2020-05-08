@@ -8596,13 +8596,15 @@ int perturb_print_variables(double tau,
       switch (ppt->hierarchy) {
       case optimal:
         l0_ur = y[ppw->pv->index_pt_l0_ur];
+        l2_ur = y[ppw->pv->index_pt_l0_ur+2];
+        l4_ur = y[ppw->pv->index_pt_l0_ur+4];
         break;
       case tam:
         /* tam hierachy does not use first two temperature multipoles for tensors */
+        l2_ur = y[ppw->pv->index_pt_l2_ur];
+        l4_ur = y[ppw->pv->index_pt_l2_ur+2];
         break;
       }
-      l2_ur = y[ppw->pv->index_pt_l2_ur];
-      l4_ur = y[ppw->pv->index_pt_l2_ur+2];
     }
 
     /** - --> Handle (re-)allocation */
