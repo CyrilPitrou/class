@@ -3285,15 +3285,15 @@ int perturb_prepare_k_output(struct background * pba,
       switch (ppt->hierarchy) {
       case optimal:
         class_store_columntitle(ppt->tensor_titles,"F_0",_TRUE_);
-        class_store_columntitle(ppt->tensor_titles,"shear_g",_TRUE_);
+        class_store_columntitle(ppt->tensor_titles,"F_2",_TRUE_);
         class_store_columntitle(ppt->tensor_titles,"F_4",_TRUE_);
         class_store_columntitle(ppt->tensor_titles,"G_0",_TRUE_);
         class_store_columntitle(ppt->tensor_titles,"G_2",_TRUE_);
         class_store_columntitle(ppt->tensor_titles,"G_4",_TRUE_);
         break;
       case tam:
-        class_store_columntitle(ppt->tensor_titles,"shear_g",_TRUE_);
-        class_store_columntitle(ppt->tensor_titles,"Theta_4",_TRUE_);
+        class_store_columntitle(ppt->tensor_titles,"Theta_g_2",_TRUE_);
+        class_store_columntitle(ppt->tensor_titles,"Theta_g_4",_TRUE_);
         class_store_columntitle(ppt->tensor_titles,"E_2",_TRUE_);
         break;
       }
@@ -3302,14 +3302,16 @@ int perturb_prepare_k_output(struct background * pba,
 
       switch (ppt->hierarchy) {
       case optimal:
-        class_store_columntitle(ppt->tensor_titles,"delta_ur",ppt->evolve_tensor_ur);
+        class_store_columntitle(ppt->tensor_titles,"F_ur_0",ppt->evolve_tensor_ur);
+        class_store_columntitle(ppt->tensor_titles,"F_ur_2",ppt->evolve_tensor_ur);
+        class_store_columntitle(ppt->tensor_titles,"F_ur_4",ppt->evolve_tensor_ur);
         break;
       case tam:
         /* tam hierachy does not use first two temperature multipoles for tensors */
+        class_store_columntitle(ppt->tensor_titles,"Theta_ur_2",ppt->evolve_tensor_ur);
+        class_store_columntitle(ppt->tensor_titles,"Theta_ur_4",ppt->evolve_tensor_ur);
         break;
       }
-      class_store_columntitle(ppt->tensor_titles,"shear_ur",ppt->evolve_tensor_ur);
-      class_store_columntitle(ppt->tensor_titles,"l4_ur",ppt->evolve_tensor_ur);
 
       if (ppt->evolve_tensor_ncdm == _TRUE_) {
         for(n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++){
@@ -3840,10 +3842,8 @@ int perturb_vector_init(
           class_define_index(ppv->index_pt_pol3_g,_TRUE_,index_pt,ppv->l_max_pol_g-2);
           break;
         case tam:
-          class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,1);
-          class_define_index(ppv->index_pt_E3,_TRUE_,index_pt,ppv->l_max_pol_g-2);
-          class_define_index(ppv->index_pt_B2,_TRUE_,index_pt,1);
-          class_define_index(ppv->index_pt_B3,_TRUE_,index_pt,ppv->l_max_pol_g-2);
+          class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,ppv->l_max_pol_g-1);
+          class_define_index(ppv->index_pt_B2,_TRUE_,index_pt,ppv->l_max_pol_g-1);
           break;
         }
       }
@@ -3994,10 +3994,8 @@ int perturb_vector_init(
           class_define_index(ppv->index_pt_pol3_g,_TRUE_,index_pt,ppv->l_max_pol_g-2); /* photon polarization, l=3 */
           break;
         case tam:
-          class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,1);
-          class_define_index(ppv->index_pt_E3,_TRUE_,index_pt,ppv->l_max_pol_g-2);
-          class_define_index(ppv->index_pt_B2,_TRUE_,index_pt,1);
-          class_define_index(ppv->index_pt_B3,_TRUE_,index_pt,ppv->l_max_pol_g-2);
+          class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,ppv->l_max_pol_g-1);
+          class_define_index(ppv->index_pt_B2,_TRUE_,index_pt,ppv->l_max_pol_g-1);
           break;
         }
       }
@@ -4132,7 +4130,7 @@ int perturb_vector_init(
             ppv->used_in_sources[index_pt]=_FALSE_;
           break;
         case tam:
-          for (index_pt=ppv->index_pt_E3; index_pt <= ppv->index_pt_E2+ppv->l_max_pol_g-2; index_pt++)
+          for (index_pt=ppv->index_pt_E2+1; index_pt <= ppv->index_pt_E2+ppv->l_max_pol_g-2; index_pt++)
             ppv->used_in_sources[index_pt]=_FALSE_;
           for (index_pt=ppv->index_pt_B2; index_pt <= ppv->index_pt_B2+ppv->l_max_pol_g-2; index_pt++)
             ppv->used_in_sources[index_pt]=_FALSE_;
@@ -4432,8 +4430,18 @@ int perturb_vector_init(
         ppv->y[ppv->index_pt_shear_g] = ppw->tca_shear_g;
 
         /* second-order tight-coupling approximation */
-        ppv->y[ppv->index_pt_l3_g] = 6./7.*k/ppw->pvecthermo[pth->index_th_dkappa]*ppw->s_l[3]*ppw->s_l[2]*ppv->y[ppv->index_pt_shear_g];
-         /* in previous equation, the missing factor s_2 was restored by JL in 2020 */
+        switch (ppt->hierarchy) {
+        case optimal:
+          /* for F_3^(0) */
+          ppv->y[ppv->index_pt_l3_g] = 6./7.*k/ppw->pvecthermo[pth->index_th_dkappa]*ppw->s_l[3]*ppw->s_l[2]*ppv->y[ppv->index_pt_shear_g];
+          /* in previous equation, the missing factor s_2 was restored by JL in 2020 */
+          break;
+        case tam:
+          /* for Theta_3^(0) = 7/4 F_3^(0) */
+          ppv->y[ppv->index_pt_l3_g] = 3./2.*k/ppw->pvecthermo[pth->index_th_dkappa]*ppw->s_l[3]*ppw->s_l[2]*ppv->y[ppv->index_pt_shear_g];
+          /* in previous equation, the missing factor s_2 was restored by JL in 2020 */
+          break;
+        }
 
         /* tight-coupling approximation for scalar polarisation multipoles */
 
@@ -4649,24 +4657,10 @@ int perturb_vector_init(
 
             case tam:
 
-              ppv->y[ppv->index_pt_E2] =
-                ppw->pv->y[ppw->pv->index_pt_E2];
-
-              ppv->y[ppv->index_pt_E3] =
-                ppw->pv->y[ppw->pv->index_pt_E3];
-
-              for (l = 4; l <= ppw->pv->l_max_pol_g; l++) {
+              for (l = 2; l <= ppw->pv->l_max_pol_g; l++) {
                 ppv->y[ppv->index_pt_E2+l-2] =
                   ppw->pv->y[ppw->pv->index_pt_E2+l-2];
-              }
 
-              ppv->y[ppv->index_pt_B2] =
-                ppw->pv->y[ppw->pv->index_pt_B2];
-
-              ppv->y[ppv->index_pt_B3] =
-                ppw->pv->y[ppw->pv->index_pt_B3];
-
-              for (l = 4; l <= ppw->pv->l_max_pol_g; l++) {
                 ppv->y[ppv->index_pt_B2+l-2] =
                   ppw->pv->y[ppw->pv->index_pt_B2+l-2];
               }
@@ -4994,24 +4988,10 @@ int perturb_vector_init(
 
             case tam:
 
-              ppv->y[ppv->index_pt_E2] =
-                ppw->pv->y[ppw->pv->index_pt_E2];
-
-              ppv->y[ppv->index_pt_E3] =
-                ppw->pv->y[ppw->pv->index_pt_E3];
-
-              for (l = 4; l <= ppw->pv->l_max_pol_g; l++) {
+              for (l = 2; l <= ppw->pv->l_max_pol_g; l++) {
                 ppv->y[ppv->index_pt_E2+l-2] =
                   ppw->pv->y[ppw->pv->index_pt_E2+l-2];
-              }
 
-              ppv->y[ppv->index_pt_B2] =
-                ppw->pv->y[ppw->pv->index_pt_B2];
-
-              ppv->y[ppv->index_pt_B3] =
-                ppw->pv->y[ppw->pv->index_pt_B3];
-
-              for (l = 4; l <= ppw->pv->l_max_pol_g; l++) {
                 ppv->y[ppv->index_pt_B2+l-2] =
                   ppw->pv->y[ppw->pv->index_pt_B2+l-2];
               }
@@ -9026,7 +9006,8 @@ int perturb_derivs(double tau,
 
     /** - --> (e) BEGINNING OF ACTUAL SYSTEM OF EQUATIONS OF EVOLUTION */
 
-    /** - ---> photon temperature density */
+    /** - ---> photon temperature density, using (2.35) of 1305.3261 with l=0, m=0, F_0^(0)=delta_g, F_1^(0)=(4/3k)theta_g, s_1=1,
+               or equivalently using (33) of astro-ph/9709066 with l=0, m=0, Theta_0^(0)=delta_g/4, Theta_1^(0)=theta_g/k */
 
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
 
@@ -9088,44 +9069,96 @@ int perturb_derivs(double tau,
           break;
         }
 
-        /** - -----> photon temperature velocity */
+        /** - -----> photon temperature velocity, using (2.35) of 1305.3261 with l=1, m=0, F_0^(0)=delta_g, F_1^(0)=(4/3k)theta_g, F_2^(0)=(2s_2)shear_g,
+               or equivalently using (33) of astro-ph/9709066 with l=1, m=0, Theta_0^(0)=delta_g/4, Theta_1^(0)=theta_g/k, Theta_2^(0)=(5s_2/2)shear_g */
 
         dy[pv->index_pt_theta_g] =
           k2*(delta_g/4.-s2_squared*y[pv->index_pt_shear_g])
           + metric_euler
           + pvecthermo[pth->index_th_dkappa]*(theta_b-theta_g);
 
-        /** - -----> photon temperature shear */
-        dy[pv->index_pt_shear_g] =
-          0.5*(8./15.*(theta_g+metric_shear)
-               -3./5.*k*s_l[3]/s_l[2]*y[pv->index_pt_l3_g]
-               -pvecthermo[pth->index_th_dkappa]*(2.*y[pv->index_pt_shear_g]-4./5./s_l[2]*P0));
+        /** - -----> photon temperature shear, using (2.35) of 1305.3261 with l=2, m=0, F_1^(0)=(4/3k)theta_g, F_2^(0)=(2s_2)shear_g, F_3^(0)=l3_g (optimal)
+            or using (33) of astro-ph/9709066 with l=2, m=0, Theta_1^(0)=theta_g/k, Theta_2^(0)=(5s_2/2)shear_g, Theta_3^(0)=l3_g (tam) */
 
-        /** - -----> photon temperature l=3 (for scalars, our
-                     multipoles l >=3 always stand for F_l of Ma &
-                     Bertschinger, even when we use the TAM
-                     hierarchy. The mutipoles Theta_l of the TAM
-                     hierarchy can be trivially computed using
-                     Theta_l = [(2l+1)/4] * F_l */
+        switch (ppt->hierarchy) {
+        case optimal:
+          /* in optimal hierarchy l3_g stands for F_3^(0) */
+          /* dy[pv->index_pt_shear_g] =
+            4./15.*(theta_g+metric_shear)
+            -3./10.*k*s_l[3]/s_l[2]*y[pv->index_pt_l3_g]
+            -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_shear_g]-2./5./s_l[2]*P0); */
+          dy[pv->index_pt_shear_g] =
+            0.5*(8./15.*(theta_g+metric_shear)
+            -3./5.*k*s_l[3]/s_l[2]*y[pv->index_pt_l3_g]
+                 -pvecthermo[pth->index_th_dkappa]*(2.*y[pv->index_pt_shear_g]-4./5./s_l[2]*P0));
+          break;
 
-        l = 3;
-        dy[pv->index_pt_l3_g] = k/(2.0*l+1.0)*
-          (l*s_l[l]*2.*s_l[2]*y[pv->index_pt_shear_g]-(l+1.)*s_l[l+1]*y[pv->index_pt_l3_g+1])
-          - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l3_g];
-
-        /** - -----> photon temperature l>3 */
-        for (l = 4; l < pv->l_max_g; l++) {
-
-          dy[pv->index_pt_delta_g+l] = k/(2.0*l+1.0)*
-            (l*s_l[l]*y[pv->index_pt_delta_g+l-1]-(l+1)*s_l[l+1]*y[pv->index_pt_delta_g+l+1])
-            - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+        case tam:
+          /* in tam hierarchy l3_g stands for Theta_3^(0)=(7/4)F_3^(0) */
+          dy[pv->index_pt_shear_g] =
+            4./15.*(theta_g+metric_shear)
+            -6./35.*k*s_l[3]/s_l[2]*y[pv->index_pt_l3_g]
+            -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_shear_g]-2./5./s_l[2]*P0);
+          break;
         }
 
-        /** - -----> photon temperature lmax */
+        /** - -----> photon temperature l=3, using (2.35) of 1305.3261 with l=3, m=0, F_2^(0)=(2s_2)shear_g, F_3^(0)=l3_g, F_4^(0) (optimal)
+            or using (33) of astro-ph/9709066 with l=3, m=0, Theta_2^(0)=(5s_2/2)shear_g, Theta_3^(0)=l3_g, Theta_4^(0) (tam) */
+
+        switch (ppt->hierarchy) {
+        case optimal:
+          /* in optimal hierarchy shear stands for 1/(2s_2) F_2^(0) */
+          dy[pv->index_pt_l3_g] = k/7.*
+            (6*s_l[3]*s_l[2]*y[pv->index_pt_shear_g]-4.*s_l[4]*y[pv->index_pt_l3_g+1])
+            - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l3_g];
+          break;
+
+        case tam:
+          /* in tam hierarchy shear stands for 2/(5s_2) Theta_2^(0) */
+          dy[pv->index_pt_l3_g] = k*
+            (3./2.*s_l[3]*s_l[2]*y[pv->index_pt_shear_g]-4./9.*s_l[4]*y[pv->index_pt_l3_g+1])
+            - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l3_g];
+          break;
+        }
+
+        /** - -----> photon temperature l>3, using (2.35) of 1305.3261 with l>3, m=0 and F_l^(0) multipoles (optimal)
+            or equivalently using (33) of astro-ph/9709066 with l>3, m=0, and Theta_l^(0) multipoles (tam).
+            For tam, to get simpler factors than in (33), we used the exact relation: q _0kappa_l^0 = k l s_l */
+
+        for (l = 4; l < pv->l_max_g; l++) {
+          switch (ppt->hierarchy) {
+          case optimal:
+            dy[pv->index_pt_delta_g+l] = k/(2.*l+1.)*
+              (l*s_l[l]*y[pv->index_pt_delta_g+l-1]-(l+1.)*s_l[l+1]*y[pv->index_pt_delta_g+l+1])
+              - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+            break;
+
+          case tam:
+            dy[pv->index_pt_delta_g+l] = k*
+              (l/(2.*l-1.)*s_l[l]*y[pv->index_pt_delta_g+l-1]-(l+1.)/(2.*l+3.)*s_l[l+1]*y[pv->index_pt_delta_g+l+1])
+              - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+            break;
+          }
+        }
+
+        /** - -----> photon temperature closure, using (2.34) of 1305.3261 (optimal)
+            or the equivalently relation in terms of Theta_l^(0) given in (9) of 2005.xxxxx (tam).
+            We also keep the -\kappa'*multipole term, but this is actually irrelevant since
+            the closure is precisely meant to be used when there is free streaming. */
+
         l = pv->l_max_g; /* l=lmax */
-        dy[pv->index_pt_delta_g+l] =
-          k*(s_l[l]*y[pv->index_pt_delta_g+l-1]-(1.+l)*cotKgen*y[pv->index_pt_delta_g+l])
-          - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+        switch (ppt->hierarchy) {
+        case optimal:
+          dy[pv->index_pt_delta_g+l] =
+            k*(s_l[l]*y[pv->index_pt_delta_g+l-1]-(1.+l)*cotKgen*y[pv->index_pt_delta_g+l])
+            - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+          break;
+        case tam:
+          dy[pv->index_pt_delta_g+l] =
+            k*((2.*l+1.)/(2.*l-1.)*s_l[l]*y[pv->index_pt_delta_g+l-1]-(1.+l)*cotKgen*y[pv->index_pt_delta_g+l])
+            - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_delta_g+l];
+          break;
+        }
 
         /** - -----> photon polarization l=0 (scalar mode) (remember s_l[1]=1) */
 
@@ -9170,10 +9203,10 @@ int perturb_derivs(double tau,
           break;
         case tam:
 
-          dy[pv->index_pt_E2] = -sqrt(k2+pba->K)*twokappam[3]/7.*y[pv->index_pt_E3]
+          dy[pv->index_pt_E2] = -sqrt(k2+pba->K)*twokappam[3]/7.*y[pv->index_pt_E2+1]
             -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_E2] + _SQRT6_*P0);
 
-          dy[pv->index_pt_B2] = -sqrt(k2+pba->K)*twokappam[3]/7.*y[pv->index_pt_B3]
+          dy[pv->index_pt_B2] = -sqrt(k2+pba->K)*twokappam[3]/7.*y[pv->index_pt_B2+1]
             -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2];
 
           break;

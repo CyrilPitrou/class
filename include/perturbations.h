@@ -491,7 +491,7 @@ struct perturb_vector
   int index_pt_l0_g;      /**< (optimal hierarchy) F_0^(m) for m=1,2 */
   int index_pt_l1_g;      /**< (tam hierarchy) Theta_1^(m) for m=1 */
   int index_pt_l2_g;      /**< (tam hierarchy) Theta_2^(m) for m=2 */
-  int index_pt_l3_g;      // To remove later
+  int index_pt_l3_g;      /**< F_3^(0) (optimal) or Theta_3^(0) (tam) */
   int l_max_g;            /**< max momentum in Boltzmann hierarchy (at least 3) */
 
   /* Boltzmann hierarchy for photon temperature. For all modes, these
@@ -499,13 +499,11 @@ struct perturb_vector
      B_l^(m) (tam hierarchy) */
 
   int index_pt_pol0_g;    /**< (optimal hierarchy) photon polarization, G_0 */
-  int index_pt_pol1_g;    /**< (optimal hierarchy) photon polarization, G_1 */ // To remove later
-  int index_pt_pol2_g;    /**< (optimal hierarchy) photon polarization, G_2 */ // To remove later
-  int index_pt_pol3_g;    /**< (optimal hierarchy) photon polarization, G_3 */ // To remove later
+  int index_pt_pol1_g;    /**< (optimal hierarchy) photon polarization, G_1 */
+  int index_pt_pol2_g;    /**< (optimal hierarchy) photon polarization, G_2 */
+  int index_pt_pol3_g;    /**< (optimal hierarchy) photon polarization, G_3 */
   int index_pt_E2;        /**< (tam hierarchy) photon polarization, E_2 */
-  int index_pt_E3;        /**< (tam hierarchy) photon polarization, E_3 */ // To remove later
   int index_pt_B2;        /**< (tam hierarchy) photon polarization, B_2 */
-  int index_pt_B3;        /**< (tam hierarchy) photon polarization, B_3 */ // To remove later
   int l_max_pol_g;        /**< max momentum in Boltzmann hierarchy (at least 3) */
 
   int index_pt_delta_b;   /**< baryon density */
