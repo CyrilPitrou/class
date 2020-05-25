@@ -505,7 +505,7 @@ struct perturb_vector
   int index_pt_pol2_g;    /**< (optimal hierarchy) photon polarization, G_2 */
   int index_pt_pol3_g;    /**< (optimal hierarchy) photon polarization, G_3 */
   int index_pt_E2;        /**< (tam hierarchy) photon polarization, E_2 */
-  int index_pt_B2;        /**< (tam hierarchy) photon polarization, B_2 */
+  int index_pt_B2;        /**< (tam hierarchy) photon polarization, B_2 for m=1,2 */
   int l_max_pol_g;        /**< highest multipole in photon Boltzmann polarisation hierarchy (at least 3) */
 
   int index_pt_delta_b;   /**< baryon density */

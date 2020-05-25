@@ -808,7 +808,7 @@ int perturb_init(
         } /* end of loop over wavenumbers */
 
 #ifdef _OPENMP
-        if (ppt->perturbations_verbose>2)
+        if (ppt->perturbations_verbose>1)
           printf("In %s: time spent in parallel region (loop over k's) = %e s for thread %d\n",
                  __func__,tspent,omp_get_thread_num());
 #endif
@@ -2505,8 +2505,17 @@ int perturb_workspace_init(
     if (pba->has_dr == _TRUE_) ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_dr);
   }
   if (_tensors_) {
-    ppw->max_l_max = MAX(ppr->l_max_g_ten, ppr->l_max_pol_g_ten);
-    if (pba->has_ur == _TRUE_) ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ur);
+    switch (ppt->hierarchy) {
+    case optimal:
+      ppw->max_l_max = MAX(ppr->l_max_g_ten, ppr->l_max_pol_g_ten);
+      if (pba->has_ur == _TRUE_) ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ur_ten);
+      break;
+    case tam:
+      /* tensor modes: l_max should be incremented by 2 to reach the same expansion order as in optimal (see 2005.xxxxx) */
+      ppw->max_l_max = MAX(ppr->l_max_g_ten+2, ppr->l_max_pol_g_ten+2);
+      if (pba->has_ur == _TRUE_) ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ur_ten+2);
+      break;
+    }
     if (pba->has_ncdm == _TRUE_) ppw->max_l_max = MAX(ppw->max_l_max, ppr->l_max_ncdm);
   }
 
@@ -3843,7 +3852,6 @@ int perturb_vector_init(
           break;
         case tam:
           class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,ppv->l_max_pol_g-1); /* E_2^(0) */
-          class_define_index(ppv->index_pt_B2,_TRUE_,index_pt,ppv->l_max_pol_g-1); /* B_2^(0) */
           break;
         }
       }
@@ -3977,16 +3985,16 @@ int perturb_vector_init(
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) { /* if radiation streaming approximation is off */
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) { /* if tight-coupling approximation is off */
 
-        ppv->l_max_g = ppr->l_max_g_ten;
-
-        ppv->l_max_pol_g = ppr->l_max_pol_g_ten;
-
         switch (ppt->hierarchy) {
         case optimal:
+          ppv->l_max_g = ppr->l_max_g_ten;
+          ppv->l_max_pol_g = ppr->l_max_pol_g_ten;
           class_define_index(ppv->index_pt_l0_g,_TRUE_,index_pt,ppv->l_max_g+1);       /* F_0^(1) */
           class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,ppv->l_max_pol_g+1); /* G_0^(1) */
           break;
         case tam:
+          ppv->l_max_g = ppr->l_max_g_ten+1;
+          ppv->l_max_pol_g = ppr->l_max_pol_g_ten+1;
           class_define_index(ppv->index_pt_l1_g,_TRUE_,index_pt,ppv->l_max_g);         /* Theta_1^(1) */
           class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,ppv->l_max_pol_g-1);     /* E_2^(1) */
           class_define_index(ppv->index_pt_B2,_TRUE_,index_pt,ppv->l_max_pol_g-1);     /* B_2^(1) */
@@ -4018,19 +4026,25 @@ int perturb_vector_init(
                ppt->error_message,
                "ppr->l_max_pol_g_ten should be at least 4");
 
+    /* reject inconsistent values of the number of mutipoles in ur hierarchy */
+    class_test(ppr->l_max_ur_ten < 4,
+               ppt->error_message,
+               "ppr->l_max_ur_ten should be at least 4, i.e. we must integrate at least over ur density, velocity, shear, third momentum");
+
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) { /* if radiation streaming approximation is off */
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) { /* if tight-coupling approximation is off */
 
-        ppv->l_max_g = ppr->l_max_g_ten;
-
-        ppv->l_max_pol_g = ppr->l_max_pol_g_ten;
-
         switch (ppt->hierarchy) {
         case optimal:
+          ppv->l_max_g = ppr->l_max_g_ten;
+          ppv->l_max_pol_g = ppr->l_max_pol_g_ten;
           class_define_index(ppv->index_pt_l0_g,_TRUE_,index_pt,ppv->l_max_g+1);   /* photon F_0^(2) */
           class_define_index(ppv->index_pt_pol0_g,_TRUE_,index_pt,ppv->l_max_g+1); /* photon G_0^(2) */
           break;
         case tam:
+          /* tensor modes: l_max should be incremented by 2 to reach the same expansion order as in optimal (see 2005.xxxxx) */
+          ppv->l_max_g = ppr->l_max_g_ten+2;
+          ppv->l_max_pol_g = ppr->l_max_pol_g_ten+2;
           /* tam hierachy does not use first two multipoles for tensors */
           class_define_index(ppv->index_pt_l2_g,_TRUE_,index_pt,ppv->l_max_g-1);   /* photon Theta_2^(2) */
           class_define_index(ppv->index_pt_E2,_TRUE_,index_pt,ppv->l_max_pol_g-1); /* photon E_2^(2) */
@@ -4044,13 +4058,14 @@ int perturb_vector_init(
 
     if (ppt->evolve_tensor_ur == _TRUE_) {
 
-      ppv->l_max_ur = ppr->l_max_ur;
-
       switch (ppt->hierarchy) {
       case optimal:
+        ppv->l_max_ur = ppr->l_max_ur_ten;
         class_define_index(ppv->index_pt_l0_ur,_TRUE_,index_pt,ppv->l_max_ur+1); /* ur F_0^(2) */
         break;
       case tam:
+        /* tensor modes: l_max should be incremented by 2 to reach the same expansion order as in optimal (see 2005.xxxxx) */
+        ppv->l_max_ur = ppr->l_max_ur_ten+2;
         /* tam hierachy does not use first two temperature multipoles for tensors */
         class_define_index(ppv->index_pt_l2_ur,_TRUE_,index_pt,ppv->l_max_ur-1); /* ur Theta_2^(2) */
       }
@@ -4126,8 +4141,6 @@ int perturb_vector_init(
           break;
         case tam:
           for (index_pt=ppv->index_pt_E2+1; index_pt <= ppv->index_pt_E2+ppv->l_max_pol_g-2; index_pt++)
-            ppv->used_in_sources[index_pt]=_FALSE_;
-          for (index_pt=ppv->index_pt_B2; index_pt <= ppv->index_pt_B2+ppv->l_max_pol_g-2; index_pt++)
             ppv->used_in_sources[index_pt]=_FALSE_;
           break;
         }
@@ -4654,9 +4667,6 @@ int perturb_vector_init(
               for (l = 2; l <= ppw->pv->l_max_pol_g; l++) {
                 ppv->y[ppv->index_pt_E2+l-2] =
                   ppw->pv->y[ppw->pv->index_pt_E2+l-2];
-
-                ppv->y[ppv->index_pt_B2+l-2] =
-                  ppw->pv->y[ppw->pv->index_pt_B2+l-2];
               }
               break;
             }
@@ -4985,9 +4995,6 @@ int perturb_vector_init(
               for (l = 2; l <= ppw->pv->l_max_pol_g; l++) {
                 ppv->y[ppv->index_pt_E2+l-2] =
                   ppw->pv->y[ppw->pv->index_pt_E2+l-2];
-
-                ppv->y[ppv->index_pt_B2+l-2] =
-                  ppw->pv->y[ppw->pv->index_pt_B2+l-2];
               }
               break;
             }
@@ -9207,9 +9214,6 @@ int perturb_derivs(double tau,
           dy[pv->index_pt_E2] = -sqrt(k2+pba->K)*twokappam[3]/7.*y[pv->index_pt_E2+1]
             -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_E2] + _SQRT6_*P0);
 
-          dy[pv->index_pt_B2] = -sqrt(k2+pba->K)*twokappam[3]/7.*y[pv->index_pt_B2+1]
-            -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2];
-
           break;
         }
 
@@ -9231,10 +9235,6 @@ int perturb_derivs(double tau,
             dy[pv->index_pt_E2+l-2] = sqrt(k2+pba->K)*
               (twokappam[l]/(2.*l-1.)*y[pv->index_pt_E2+l-3]-twokappam[l+1]/(2.*l+3.)*y[pv->index_pt_E2+l-1])
               -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2];
-
-            dy[pv->index_pt_B2+l-2] = sqrt(k2+pba->K)*
-              (twokappam[l]/(2.*l-1.)*y[pv->index_pt_B2+l-3]-twokappam[l+1]/(2.*l+3.)*y[pv->index_pt_B2+l-1])
-              -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2];
           }
           break;
         }
@@ -9259,10 +9259,6 @@ int perturb_derivs(double tau,
                                      -(l+3.)*k*cotKgen*y[pv->index_pt_E2+l-2]
                                      -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_E2+l-2]);
 
-          dy[pv->index_pt_B2+l-2] = (sqrt(k2+pba->K)*
-                                     (twokappam[l]*(2.*l+1.)/(2.*l-1.)/(l-2.)*y[pv->index_pt_B2+l-3])
-                                     -(l+3.)*k*cotKgen*y[pv->index_pt_B2+l-2]
-                                     -pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_B2+l-2]);
           break;
         }
       }
