@@ -5285,7 +5285,7 @@ int perturbations_initial_conditions(struct precision * ppr,
   double delta_dr=0;
   double q,epsilon,k2;
   int index_q,n_ncdm,idx;
-  double rho_r,rho_m,rho_nu,rho_m_over_rho_r, rho_cdm =0.;
+  double rho_r,rho_m,rho_nu,rho_m_over_rho_r, rho_cdm =0.,rho_fs;
   double fracnu,fracg,fracb,fraccdm = 0.,fracidm = 0.;
   double om;
   double ktau_two,ktau_three;
@@ -5330,22 +5330,18 @@ int perturbations_initial_conditions(struct precision * ppr,
   if (pba->has_dcdm == _TRUE_) {
     rho_m += ppw->pvecback[pba->index_bg_rho_dcdm];
   }
-
   if (pba->has_dr == _TRUE_) {
     rho_r += ppw->pvecback[pba->index_bg_rho_dr];
     rho_nu += ppw->pvecback[pba->index_bg_rho_dr];
   }
-
   if (pba->has_ur == _TRUE_) {
     rho_r += ppw->pvecback[pba->index_bg_rho_ur];
     rho_nu += ppw->pvecback[pba->index_bg_rho_ur];
   }
-
   if (pba->has_idr == _TRUE_) {
     rho_r += ppw->pvecback[pba->index_bg_rho_idr];
     rho_nu += ppw->pvecback[pba->index_bg_rho_idr];
   }
-
   if (pba->has_ncdm == _TRUE_) {
     for (n_ncdm=0; n_ncdm<pba->N_ncdm; n_ncdm++){
       rho_r += ppw->pvecback[pba->index_bg_rho_ncdm1 + n_ncdm];
@@ -6039,6 +6035,43 @@ int perturbations_initial_conditions(struct precision * ppr,
 
   }
 
+    /** - --> ncdm contribution to 3*P_fs */
+    if (pba->has_ncdm == _TRUE_) {
+      for (n_ncdm = 0; n_ncdm < pba->N_ncdm; n_ncdm++) {
+	rho_fs += 3.*ppw->pvecback[pba->index_bg_p_ncdm1+n_ncdm];
+      }
+    }
+        
+    /** We correct the initial condition for h and h'. It is crucial for h' since it is of order tau. We could however omit the correction in h. */
+    h_corr_2 = - ppw->pv->y[ppw->pv->index_pt_gw] *(k2+2*pba->K)/(6 + 8./5.*rho_fs/rho_r) *tau*tau;
+    ppw->pv->y[ppw->pv->index_pt_gw] += h_corr_2;
+    ppw->pv->y[ppw->pv->index_pt_gwdot] = 2.*h_corr_2/tau;
+    
+    /**We also set the quadrupoles (aka F_0^(2) in optimal hierarchy) to their order tau^2 value so that the equation start being correct
+    We use the fact that F_0^(2)' = sqrt(6)*h' +... as seen in Eq 2.35 of 1305.3261
+    If one wishes one day to use the TAM hierarchy, we shall use here Theta_2^(2) = -1/sqrt(6) F_0^(2) since the F_2^(2) and F_4^(2) are subdominant for initial conditions. */
+    if (ppt->evolve_tensor_ur == _TRUE_) {
+      ppw->pv->y[ppw->pv->index_pt_delta_ur] = _SQRT6_ *h_corr_2;
+    }
+    
+    /** Idem for non-cold dark matter. TBC. */
+    if (ppt->evolve_tensor_ncdm == _TRUE_){
+      
+      idx = ppw->pv->index_pt_psi0_ncdm1;
+      
+      for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++){
+	for (index_q=0; index_q < ppw->pv->q_size_ncdm[n_ncdm]; index_q ++) {
+	  
+	  //TBC ! I have guessed from the hierarchy this condition by asking it is the same as for ur species.
+	  ppw->pv->y[idx] = _SQRT6_*h_corr_2* (-0.25 * pba->dlnf0_dlnq_ncdm[n_ncdm][index_q]);
+	  
+	  // jump to next momentum
+	  idx+=(ppw->pv->l_max_ncdm[n_ncdm]+1);
+	}
+      }
+    }
+  }
+  
   return _SUCCESS_;
 }
 
