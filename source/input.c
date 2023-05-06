@@ -2327,6 +2327,22 @@ int input_read_parameters_general(struct file_content * pfc,
     class_read_double("bbn_alpha_sensitivity",pth->bbn_alpha_sensitivity);
   }
 
+  /** 11) version of Boltzmann equation hierarchy */
+
+  class_call(parser_read_string(pfc,"hierarchy",&string1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+
+  if (flag1 == _TRUE_) {
+
+    if (strstr(string1,"optimal") != NULL) {
+      ppt->hierarchy = optimal;
+    }
+    else if ((strstr(string1,"tam") != NULL) || (strstr(string1,"TAM") != NULL)) {
+      ppt->hierarchy = tam;
+    }
+  }
+  
   return _SUCCESS_;
 
 }
@@ -5807,6 +5823,9 @@ int input_default_params(struct background *pba,
   pba->varconst_me = 1.;
   pth->bbn_alpha_sensitivity = 1.;
   pba->varconst_transition_redshift = 50.;
+
+  /** 11 hierarchy type */
+  ppt->hierarchy = optimal;
 
   /**
    * Default to input_read_parameters_species

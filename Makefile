@@ -19,7 +19,7 @@ vpath .base build
 ########################################################
 
 # your C compiler:
-CC       = gcc-mp-11
+CC       = gcc
 #CC       = icc
 #CC       = pgcc
 CPP      = g++ --std=c++11 -fpermissive -Wno-write-strings
