@@ -665,7 +665,7 @@ struct perturbations_workspace
 
   double tca_T2_vector;  /**< photon quadrupole in tight-coupling approximation for vector modes */
   double tca_slip_vector;     /**< photon-baryon slip (2.31 of 2410.03612) in tight-coupling approximation for vector modes */
-  
+
   double tca_shear_idm_dr; /**< interacting dark radiation shear in tight coupling appproximation */
   double rsa_delta_g;  /**< photon density in radiation streaming approximation */
   double rsa_theta_g;  /**< photon velocity in radiation streaming approximation */
