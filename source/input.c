@@ -2341,6 +2341,10 @@ int input_read_parameters_general(struct file_content * pfc,
     else if ((strstr(string1,"tam") != NULL) || (strstr(string1,"TAM") != NULL)) {
       ppt->hierarchy = tam;
     }
+    else {
+      class_stop(errmsg,
+                 "You specified 'hierarchy as '%s'. It has to be one of {'optimal','tam'}.",string1);
+    }
   }
   
   return _SUCCESS_;

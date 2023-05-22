@@ -69,15 +69,13 @@ enum possible_gauges {
  * with just two hierarchies F_l, G_l; or 'tam' for total angular
  * momentum method by Hu, Seljak, White, Zaldarriaga with three
  * hierarchies Theta_l, E_l, B_l (astro-ph/9702170, astro-ph/9709066,
- * 1909.13687, 2005.xxxxx). The two hierarchies are also implemented
+ * 1909.13687, 2005.12119). The two hierarchies are also implemented
  * for neutrino tensor modes (for neutrino scalar modes they are
- * exactly equivalent). The two hierarchies are also implemented for
- * neutrino tensor modes (for neutrino scalar modes they are exactly
- * equivalent). Their use is nearly indifferent: 'optimal' gives an
+ * exactly equivalent). Their use is nearly indifferent: 'optimal' gives an
  * almost negligible speed up and almost negligible accuracy
  * degradation in the curved case (biggest relative error is ~
  * 0.5*|Omega_k| on the large-l tensor polarisation spectrum, see
- * 2005.xxxxx). Credits C. Pitrou and T. Pereira.
+ * 2005.12119). Credits C. Pitrou and T. Pereira.
  */
 
 //@{
