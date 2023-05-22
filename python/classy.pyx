@@ -1844,12 +1844,11 @@ cdef class Class:
         else:
             outf = class_format
 
-        # check name and number of trnasfer functions computed ghy CLASS
+        # check name and number of transfer functions computed by CLASS
 
         titles = <char*>calloc(_MAXTITLESTRINGLENGTH_,sizeof(char))
 
-        if perturbations_output_titles(&self.ba,&self.pt, outf, titles)==_FAILURE_:
-            free(titles) # manual free due to error
+        if perturbations_output_titles(&self.ba,&self.pt, outf, index_md, titles)==_FAILURE_:
             raise CosmoSevereError(self.pt.error_message)
 
         tmp = <bytes> titles
@@ -1896,8 +1895,7 @@ cdef class Class:
         # get T(k,z) array
 
         for index_tau in range(len(z)):
-            if perturbations_output_data_at_index_tau(&self.ba, &self.pt, outf, index_tau, number_of_titles, data)==_FAILURE_:
-                free(data) # manual free due to error
+            if perturbations_output_data_at_index_tau(&self.ba, &self.pt, outf, index_md, index_tau, number_of_titles, data)==_FAILURE_:
                 raise CosmoSevereError(self.pt.error_message)
 
             for index_type,name in enumerate(names):
@@ -3486,8 +3484,7 @@ cdef class Class:
         index_md = self.pt.index_md_scalars;
         titles = <char*>calloc(_MAXTITLESTRINGLENGTH_,sizeof(char))
 
-        if perturbations_output_titles(&self.ba,&self.pt, outf, titles)==_FAILURE_:
-            free(titles) #manual free due to error
+        if perturbations_output_titles(&self.ba,&self.pt, outf, index_md, titles)==_FAILURE_:
             raise CosmoSevereError(self.pt.error_message)
 
         tmp = <bytes> titles
@@ -3501,15 +3498,13 @@ cdef class Class:
 
         data = <double*>malloc(sizeof(double)*size_ic_data*ic_num)
 
-        if perturbations_output_data_at_z(&self.ba, &self.pt, outf, <double> z, number_of_titles, data)==_FAILURE_:
+        if perturbations_output_data_at_z(&self.ba, &self.pt, outf, index_md, <double> z, number_of_titles, data)==_FAILURE_:
             raise CosmoSevereError(self.pt.error_message)
 
         transfers = {}
 
         for index_ic in range(ic_num):
-            if perturbations_output_firstline_and_ic_suffix(&self.pt, index_ic, ic_info, ic_suffix)==_FAILURE_:
-                free(titles) #manual free due to error
-                free(data) #manual free due to error
+            if perturbations_output_firstline_and_ic_suffix(&self.pt, index_md, index_ic, ic_info, ic_suffix)==_FAILURE_:
                 raise CosmoSevereError(self.pt.error_message)
             ic_key = <bytes> ic_suffix
 

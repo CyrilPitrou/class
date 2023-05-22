@@ -483,12 +483,12 @@ cdef extern from "class.h":
     int thermodynamics_output_titles(void * pba, void *pth, char titles[8000])
     int thermodynamics_output_data(void *pba, void *pth, int number_of_titles, double *data)
 
-    int perturbations_output_data_at_z(void *pba,void *ppt, file_format output_format, double z, int number_of_titles, double *data)
-    int perturbations_output_data_at_index_tau(void *pba,void *ppt, file_format output_format, int ondex_tau, int number_of_titles, double *data)
-    int perturbations_output_data(void *pba,void *ppt, file_format output_format, double * tkfull, int number_of_titles, double *data)
-    int perturbations_output_firstline_and_ic_suffix(void *ppt, int index_ic, char first_line[1024], FileName ic_suffix)
-    int perturbations_output_titles(void *pba, void *ppt,  file_format output_format, char titles[8000])
-
+    int perturbations_output_data_at_z(void *pba,void *ppt, file_format output_format, int index_md, double z, int number_of_titles, double *data)
+    int perturbations_output_data_at_index_tau(void *pba,void *ppt, file_format output_format, int index_md, int index_tau, int number_of_titles, double *data)
+    int perturbations_output_data(void *pba,void *ppt, file_format output_format, int index_md, double * tkfull, int number_of_titles, double *data)
+    int perturbations_output_firstline_and_ic_suffix(void *ppt, int index_md, int index_ic, char first_line[1024], FileName ic_suffix)
+    int perturbations_output_titles(void *pba, void *ppt,  file_format output_format, int index_md, char titles[8000])
+    
     int primordial_output_titles(void * ppt, void *ppm, char titles[8000])
     int primordial_output_data(void *ppt, void *ppm, int number_of_titles, double *data)
 

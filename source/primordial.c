@@ -775,7 +775,24 @@ int primordial_analytic_spectrum_init(
           one_running = ppm->alpha_niv;
         }
       }
+      
+      if (_vectors_) {
 
+	//These initial conditions need to be imporved with a f_ factor like for scalar non-adiabatic ?
+        if (index_ic1 == ppt->index_ic_iso_v) {
+          one_amplitude = ppm->A_s*ppm->r_v;
+          one_tilt = ppm->n_v+1.; /* +1 to match usual definition of n_v (equivalent to n_v-1) */
+          one_running = ppm->alpha_v;
+        }
+
+	if (index_ic1 == ppt->index_ic_oct_v) {
+          one_amplitude = ppm->A_s*ppm->r_v;
+          one_tilt = ppm->n_v+1.; /* +1 to match usual definition of n_v (equivalent to n_v-1) */
+          one_running = ppm->alpha_v;
+        }
+
+      }
+      
       if (_tensors_) {
 
         if (index_ic1 == ppt->index_ic_ten) {

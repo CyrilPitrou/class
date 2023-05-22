@@ -46,7 +46,7 @@ enum rsa_idr_method {rsa_idr_none,rsa_idr_MD};  /* for the idm-idr case */
 enum ufa_method {ufa_mb,ufa_hu,ufa_CLASS,ufa_none};
 enum ncdmfa_method {ncdmfa_mb,ncdmfa_hu,ncdmfa_CLASS,ncdmfa_none};
 enum tensor_methods {tm_photons_only,tm_massless_approximation,tm_exact};
-
+enum vector_methods {vm_massless_approximation,vm_exact};
 //@}
 
 /**
@@ -137,15 +137,22 @@ struct perturbations
   short has_nid;     /**< do we need isocurvature nid mode? */
   short has_niv;     /**< do we need isocurvature niv mode? */
 
+  short has_iso_v;     /**< do we need isocurvature vector mode? */
+  short has_oct_v;     /**< do we need (neutrino) octupole vector mode? */
+
   /* perturbed recombination */
   /** Do we want to consider perturbed temperature and ionization fraction? */
   short has_perturbed_recombination;
   /** Neutrino contribution to tensors */
   enum tensor_methods tensor_method;  /**< way to treat neutrinos in tensor perturbations(neglect, approximate as massless, take exact equations) */
+  enum vector_methods vector_method;  /**< way to treat neutrinos in vector perturbations (approximate as massless, take exact equations) */
 
   short evolve_tensor_ur;             /**< will we evolve ur tensor perturbations (either because we have ur species, or we have ncdm species with massless approximation) ? */
   short evolve_tensor_ncdm;             /**< will we evolve ncdm tensor perturbations (if we have ncdm species and we use the exact method) ? */
 
+  short evolve_vector_ur;             /**< will we evolve ur vector perturbations (either because we have ur species, or we have ncdm species with massless approximation) ? */
+  short evolve_vector_ncdm;             /**< will we evolve ncdm vector perturbations (if we have ncdm species and we use the exact method) ? */
+  
   short has_cl_cmb_temperature;       /**< do we need \f$ C_l \f$'s for CMB temperature? */
   short has_cl_cmb_polarization;      /**< do we need \f$ C_l \f$'s for CMB polarization? */
   short has_cl_cmb_lensing_potential; /**< do we need \f$ C_l \f$'s for CMB lensing potential? */
@@ -163,6 +170,8 @@ struct perturbations
   short has_nc_rsd;      /**< in dCl, do we want redshift space distortion terms ? */
   short has_nc_lens;     /**< in dCl, do we want lensing terms ? */
   short has_nc_gr;       /**< in dCl, do we want gravity terms ? */
+
+  short has_vector_velocity_transfers;       /**< do we need to output individual vector velocity transfer functions? */
 
   int l_scalar_max; /**< maximum l value for CMB scalars \f$ C_l \f$'s */
   int l_vector_max; /**< maximum l value for CMB vectors \f$ C_l \f$'s */
@@ -228,7 +237,7 @@ struct perturbations
 
   //@{
 
-  enum hierarchies hierarchy; /**< wich version of the polarization Boltzmann hierarchy */
+  enum hierarchies hierarchy; /**< which version of the polarization Boltzmann hierarchy */
 
   //@}
 
@@ -254,6 +263,9 @@ struct perturbations
   int index_ic_nid; /**< index value for neutrino density isocurvature */
   int index_ic_niv; /**< index value for neutrino velocity isocurvature */
   int index_ic_ten; /**< index value for unique possibility for tensors */
+
+  int index_ic_iso_v; /**< index value for isocurvature in vector modes */
+  int index_ic_oct_v; /**< index value for neutrino octupolar in vector modes */
 
   int * ic_size;       /**< for a given mode, ic_size[index_md] = number of initial conditions included in computation */
 
@@ -304,14 +316,18 @@ struct perturbations
   short has_source_H_T_Nb_prime; /**< do we need source for metric fluctuation H_T_Nb'? */
   short has_source_k2gamma_Nb; /**< do we need source for metric fluctuation gamma in Nbody gauge? */
 
+  short has_source_vector_theta_g;    /**< do we need source for theta of gammas for vector mode ? */
+  short has_source_vector_theta_b;    /**< do we need source for theta of baryons for vector modes ? */
+  short has_source_vector_theta_ur;   /**< do we need source for theta of ultra-relativistic neutrinos/relics for vector modes ? */
 
   /* remember that the temperature source function includes three
      terms that we call 0,1,2 (since the strategy in class v > 1.7 is
      to avoid the integration by part that would reduce the source to
      a single term) */
   int index_tp_t0; /**< index value for temperature (j=0 term) */
-  int index_tp_t1; /**< index value for temperature (j=1 term) */
-  int index_tp_t2; /**< index value for temperature (j=2 term) */
+  int index_tp_t1; /**< index value for temperature (j=1 term) for scalar mode (m=0) */
+  int index_tp_t1_v; /**< index value for temperature (j=1 term) for vector mode (m=1) */
+  int index_tp_t2; /**< index value for temperature (j=2 term), common index for m=0,1,2 */
   int index_tp_p; /**< index value for polarization */
   int index_tp_delta_m; /**< index value for matter density fluctuation */
   int index_tp_delta_cb; /**< index value for delta cb */
@@ -355,6 +371,11 @@ struct perturbations
   int index_tp_eta_prime;    /**< index value for metric fluctuation eta' */
   int index_tp_H_T_Nb_prime; /**< index value for metric fluctuation H_T_Nb' */
   int index_tp_k2gamma_Nb;   /**< index value for metric fluctuation gamma times k^2 in Nbody gauge */
+
+  int index_tp_vector_theta_g;     /**< index value for theta of gammas for vector modes */
+  int index_tp_vector_theta_b;     /**< index value for theta of baryons for vector modes */
+  int index_tp_vector_theta_ur;     /**< index value for theta of ur species for vector modes */
+  int index_tp_V;          /**< index value for metric fluctuation V (vector mode) */
 
   int * tp_size; /**< number of types tp_size[index_md] included in computation for each mode */
 
@@ -641,6 +662,10 @@ struct perturbations_workspace
 
   double tca_shear_g;  /**< photon shear in tight-coupling approximation */
   double tca_slip;     /**< photon-baryon slip in tight-coupling approximation */
+
+  double tca_T2_vector;  /**< photon quadrupole in tight-coupling approximation for vector modes */
+  double tca_slip_vector;     /**< photon-baryon slip in tight-coupling approximation for vector modes */
+  
   double tca_shear_idm_dr; /**< interacting dark radiation shear in tight coupling appproximation */
   double rsa_delta_g;  /**< photon density in radiation streaming approximation */
   double rsa_theta_g;  /**< photon velocity in radiation streaming approximation */
@@ -769,21 +794,11 @@ extern "C" {
                                  double * psource_at_z
                                  );
 
-   int perturbations_sources_at_k_and_z(
-                                        struct background * pba,
-                                        struct perturbations * ppt,
-                                        int index_md,
-                                        int index_ic,
-                                        int index_tp,
-                                        double k,
-                                        double z,
-                                        double * psource_at_k_and_z
-                                        );
-
   int perturbations_output_data_at_z(
                                      struct background * pba,
                                      struct perturbations * ppt,
                                      enum file_format output_format,
+				     int index_md,
                                      double z,
                                      int number_of_titles,
                                      double *data
@@ -793,7 +808,8 @@ extern "C" {
                                              struct background * pba,
                                              struct perturbations * ppt,
                                              enum file_format output_format,
-                                             int index_tau,
+					     int index_md,
+					     int index_tau,
                                              int number_of_titles,
                                              double *data
                                              );
@@ -802,6 +818,7 @@ extern "C" {
                                 struct background * pba,
                                 struct perturbations * ppt,
                                 enum file_format output_format,
+				int index_md,
                                 double * tkfull,
                                 int number_of_titles,
                                 double *data
@@ -811,11 +828,14 @@ extern "C" {
                                   struct background *pba,
                                   struct perturbations *ppt,
                                   enum file_format output_format,
+				  int index_md,
                                   char titles[_MAXTITLESTRINGLENGTH_]
                                   );
 
+  
   int perturbations_output_firstline_and_ic_suffix(
                                                    struct perturbations *ppt,
+						   int index_md,
                                                    int index_ic,
                                                    char first_line[_LINE_LENGTH_MAX_],
                                                    char ic_suffix[_SUFFIXNAMESIZE_]

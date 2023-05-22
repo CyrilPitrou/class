@@ -143,9 +143,8 @@ CLASS_INPUT['Lensing'] = (
 
 #Testing the possibility of switching to the Total angular momentum hierarchy instead of the optimal hierarchy                                                                                 
 CLASS_INPUT['Hierarchies'] = (
-    [{'hierarchy': 'optimal'},
-     {'hierarchy': 'tam'}],
-    'normal')
+    [{'hierarchy': 'tam'}],
+    'power')
 
 if TEST_LEVEL > 0:
     CLASS_INPUT['Mnu'] = (
@@ -161,14 +160,20 @@ if TEST_LEVEL > 1:
 
     CLASS_INPUT['modes'] = (
         [{'modes': 't'},
-        {'modes': 's, t'}],
+         {'modes': 'v'},
+         {'modes': 's, v, t'}],
         'normal')
 
+    
     CLASS_INPUT['Tensor_method'] = (
         [{'tensor method': 'exact'},
         {'tensor method': 'photons'}],
         'onlyfull')
 
+    CLASS_INPUT['Vector_method'] = (
+        [{'vector_method': 'exact'}],
+        'power')
+    
 if TEST_LEVEL > 2:
     CLASS_INPUT['Isocurvature_modes'] = (
         [{'ic': 'ad,nid,cdi', 'c_ad_cdi': -0.5}],
@@ -457,6 +462,15 @@ class TestClass(unittest.TestCase):
                 if 'tCl' not in output and 'pCl' not in output:
                     should_fail = True
 
+        #idem for vectors
+        if has_vector(self.scenario):
+            if 'output' not in self.scenario:
+                should_fail = True
+            else:
+                output = self.scenario['output'].split()
+                if 'tCl' not in output and 'pCl' not in output:
+                    should_fail = True
+                    
         # If we have specified lensing, we must have lCl in output,
         # otherwise lensing will not be read (which is an error).
         if 'lensing' in self.scenario:
@@ -474,7 +488,12 @@ class TestClass(unittest.TestCase):
             if not has_tensor(self.scenario):
                 should_fail = True
 
-        # If we have specified non_linear, we must have some form of
+        # If we have specified a vector method, we must have vectors.
+        if 'vector_method' in self.scenario:
+            if not has_vector(self.scenario):
+                should_fail = True
+
+        # If we have specified non linear, we must have some form of
         # perturbations output.
         if 'non_linear' in self.scenario:
             if 'output' not in self.scenario:
@@ -686,6 +705,15 @@ def has_tensor(input_dict):
     else:
         return False
     return False
+
+def has_vector(input_dict):
+    if 'modes' in input_dict:
+        if input_dict['modes'].find('v') != -1:
+            return True
+    else:
+        return False
+    return False
+
 
 if __name__ == '__main__':
     toto = TestClass()
