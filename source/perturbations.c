@@ -747,6 +747,11 @@ int perturbations_init(
              ppt->error_message,
              "In the synchronous gauge, it is not self-consistent to assume no CDM: the later is used to define the initial timelike hypersurface. You can either add a negligible amount of CDM, or switch to newtonian gauge");
 
+  //PITROU_UZAN safety anti Newtonian gauge in case there is a scalar field
+  class_test((ppt->gauge == newtonian) && (pba->has_scf == _TRUE_),
+             ppt->error_message,
+             "In case there is a scalar field, we cannot use the Newtonian gauge (because this requires the phi_metric' (derivative of a Bardeen potential which is never computed");
+
   class_test ((ppr->tight_coupling_approximation < first_order_MB) ||
               (ppr->tight_coupling_approximation > compromise_CLASS),
               ppt->error_message,
@@ -3447,6 +3452,7 @@ int perturbations_prepare_k_output(struct background * pba,
       /* Scalar field scf */
       class_store_columntitle(ppt->scalar_titles, "delta_scf", pba->has_scf);
       class_store_columntitle(ppt->scalar_titles, "theta_scf", pba->has_scf);
+      class_store_columntitle(ppt->scalar_titles, "delta_phi_scf", pba->has_scf);
       /** Fluid */
       class_store_columntitle(ppt->scalar_titles, "delta_rho_fld", pba->has_fld);
       class_store_columntitle(ppt->scalar_titles, "rho_plus_p_theta_fld", pba->has_fld);
@@ -8557,6 +8563,7 @@ int perturbations_print_variables(double tau,
     /* Scalar field scf*/
     class_store_double(dataptr, delta_scf, pba->has_scf, storeidx);
     class_store_double(dataptr, theta_scf, pba->has_scf, storeidx);
+    class_store_double(dataptr, y[ppw->pv->index_pt_phi_scf], pba->has_scf, storeidx);
     /** Fluid */
     class_store_double(dataptr, ppw->delta_rho_fld, pba->has_fld, storeidx);
     class_store_double(dataptr, ppw->rho_plus_p_theta_fld, pba->has_fld, storeidx);
@@ -9220,16 +9227,20 @@ int perturbations_derivs(double tau,
 
       /** - ----> newtonian gauge: cdm density and velocity */
 
+      //PITROU_UZAN 
       if (ppt->gauge == newtonian) {
-        dy[pv->index_pt_delta_cdm] = -(y[pv->index_pt_theta_cdm]+metric_continuity); /* cdm density */
+        dy[pv->index_pt_delta_cdm] = -(y[pv->index_pt_theta_cdm]+metric_continuity)
+	  +(pvecback[pba->index_bg_ddlnA_scf]*pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_phi_scf] + pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_phi_prime_scf]); /* cdm density */
 
-        dy[pv->index_pt_theta_cdm] = - a_prime_over_a*y[pv->index_pt_theta_cdm] + metric_euler; /* cdm velocity */
+        dy[pv->index_pt_theta_cdm] = - a_prime_over_a*y[pv->index_pt_theta_cdm] + metric_euler
+	  - pvecback[pba->index_bg_dlnA_scf] * (pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_phi_scf] - k2 * y[pv->index_pt_phi_scf]); /* cdm velocity */
       }
 
       /** - ----> synchronous gauge: cdm density only (velocity set to zero by definition of the gauge) */
 
       if (ppt->gauge == synchronous) {
-        dy[pv->index_pt_delta_cdm] = -metric_continuity; /* cdm density */
+        dy[pv->index_pt_delta_cdm] = -metric_continuity 
+ 	  + (pvecback[pba->index_bg_ddlnA_scf]*pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_phi_scf] + pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_phi_prime_scf]); /* cdm density */
       }
     }
 
@@ -9398,9 +9409,11 @@ int perturbations_derivs(double tau,
 
       /** - ----> Klein Gordon equation */
 
+      //PITROU_UZAN Only valid in Newtonian gauge !!!! Otherwise the equation is more involved and requires both phi_metric' and psi_metric'. phi_metric' is computed but not psi_metric' for the moment, hence it is impossible. A safety check aborts if Newtonian gauge
       dy[pv->index_pt_phi_prime_scf] =  - 2.*a_prime_over_a*y[pv->index_pt_phi_prime_scf]
-        - metric_continuity*pvecback[pba->index_bg_phi_prime_scf] //  metric_continuity = h'/2
-        - (k2 + a2*pvecback[pba->index_bg_ddV_scf])*y[pv->index_pt_phi_scf]; //checked
+        - metric_continuity*pvecback[pba->index_bg_phi_prime_scf] //  metric_continuity = h'/2 with h = -3 Psi_Uzan + Delta E_Uzan.
+        - (k2 + a2*pvecback[pba->index_bg_ddV_scf])*y[pv->index_pt_phi_scf]
+	- 3 * a2 * pvecback[pba->index_bg_rho_cdm] * (pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_delta_cdm] + pvecback[pba->index_bg_ddlnA_scf]*y[pv->index_pt_phi_scf]); //checked
 
     }
 
