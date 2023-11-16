@@ -572,6 +572,18 @@ extern "C" {
                double phi_prime
                );
 
+  //PITROU_UZAN. Non minimal coupling to CDM.
+  double A_scf(
+               struct background *pba,
+               double phi
+               );
+
+  double dA_scf(
+                struct background *pba,
+                double phi
+                );
+
+  
 #ifdef __cplusplus
 }
 #endif

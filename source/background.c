@@ -2996,3 +2996,16 @@ double ddV_scf(
                double phi) {
   return ddV_e_scf(pba,phi)*V_p_scf(pba,phi) + 2*dV_e_scf(pba,phi)*dV_p_scf(pba,phi) + V_e_scf(pba,phi)*ddV_p_scf(pba,phi);
 }
+
+//PITROU_UZAN
+double A_scf(
+             struct background *pba,
+             double phi) {
+  return  0;
+}
+
+double dA_scf(
+              struct background *pba,
+              double phi) {
+  return 0;
+}
