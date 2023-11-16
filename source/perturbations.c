@@ -9257,13 +9257,15 @@ int perturbations_derivs(double tau,
       /** - ----> synchronous gauge: cdm density only (velocity set to zero by definition of the gauge) */
 
       if (ppt->gauge == synchronous) {
-        dy[pv->index_pt_delta_cdm] = -metric_continuity -y[pv->index_pt_theta_cdm]; /* cdm density. PITROU I have added the theta_cdm term (since with a scalar field it is no more 0) */
+        dy[pv->index_pt_delta_cdm] = -metric_continuity ; /* cdm density. PITROU I have added the theta_cdm term (since with a scalar field it is no more 0) */
 
-	if (pba->has_scf == _TRUE_)
+	if (pba->has_scf == _TRUE_) {
+	  dy[pv->index_pt_delta_cdm] += -y[pv->index_pt_theta_cdm];//Term needed since synchronous gauge has no more vanishing theta_cdm when there is a scalar field
 	  dy[pv->index_pt_theta_cdm] = - a_prime_over_a*y[pv->index_pt_theta_cdm]; /* cdm velocity */
+	}
       }
 
-      //PITROU_UZAN add contribution for non minimally coupled scalar field/
+      //PITROU_UZAN add contribution for non minimally coupled scalar field. This is for both gauges.
       if (pba->has_scf == _TRUE_) {
 	
 	dy[pv->index_pt_delta_cdm] += (pvecback[pba->index_bg_ddlnA_scf]*pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_phi_scf] + pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_phi_prime_scf]);
