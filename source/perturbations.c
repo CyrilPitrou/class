@@ -747,11 +747,13 @@ int perturbations_init(
              ppt->error_message,
              "In the synchronous gauge, it is not self-consistent to assume no CDM: the later is used to define the initial timelike hypersurface. You can either add a negligible amount of CDM, or switch to newtonian gauge");
 
-  //PITROU_UZAN safety anti Newtonian gauge in case there is a scalar field
-  class_test((ppt->gauge == newtonian) && (pba->has_scf == _TRUE_),
+  //PITROU_UZAN In case of Newtonian gauge, one needs both phi_prime and psi_prime (Bardeen potentials). Since only one is computed in perturbations_einstein, the Newtonian gauge resul is approximate.
+  /*class_test((ppt->gauge == newtonian) && (pba->has_scf == _TRUE_),
              ppt->error_message,
-             "In case there is a scalar field, we cannot use the Newtonian gauge (because this requires the phi_metric' (derivative of a Bardeen potential which is never computed");
-
+             "In case there is a scalar field, we cannot use the Newtonian gauge (because this requires the phi_metric' (derivative of a Bardeen potential which is never computed");*/
+  if ((ppt->gauge == newtonian) && (pba->has_scf == _TRUE_))
+    printf("WARNING Newtonian gauge is approximate when using a scalar field. \n");
+  
   class_test ((ppr->tight_coupling_approximation < first_order_MB) ||
               (ppr->tight_coupling_approximation > compromise_CLASS),
               ppt->error_message,
@@ -2811,6 +2813,8 @@ int perturbations_workspace_init(
     if (ppt->gauge == newtonian) {
       class_define_index(ppw->index_mt_psi,_TRUE_,index_mt,1); /* psi */
       class_define_index(ppw->index_mt_phi_prime,_TRUE_,index_mt,1); /* phi' */
+      //PITROU_UZAN
+      class_define_index(ppw->index_mt_psi_prime,_TRUE_,index_mt,1); /* psi' */
     }
 
     /* synchronous gauge (note that eta is counted in the vector of
@@ -6575,6 +6579,7 @@ int perturbations_einstein(
   double s2_squared;
   double shear_g = 0.;
   double shear_idr = 0.;
+  double shear_ur_prime=0.;
 
   /** - define wavenumber and scale factor related quantities */
 
@@ -6612,9 +6617,21 @@ int perturbations_einstein(
       /* equation for psi */
       ppw->pvecmetric[ppw->index_mt_psi] = y[ppw->pv->index_pt_phi] - 4.5 * (a2/k2) * ppw->rho_plus_p_shear;
 
+      //PITROU_UZAN we compute the derivative of rho_plus_P_shear taking into account only neutrinos for approximation. Hence it is ONLY approximate WARNING.
+      shear_ur_prime = 0.5*(8./15.*y[ppw->pv->index_pt_theta_ur]
+			    -3./5.*k*ppw->s_l[3]/ppw->s_l[2]*y[ppw->pv->index_pt_shear_ur+1]);
+      
       /* equation for phi' */
       ppw->pvecmetric[ppw->index_mt_phi_prime] = -a_prime_over_a * ppw->pvecmetric[ppw->index_mt_psi] + 1.5 * (a2/k2) * ppw->rho_plus_p_theta;
 
+      ppw->pvecmetric[ppw->index_mt_psi_prime] = ppw->pvecmetric[ppw->index_mt_phi_prime]
+	+ 9 * a_prime_over_a * (a2/k2) * ppw->rho_plus_p_shear
+        - 6*(a2/k2)*ppw->pvecback[pba->index_bg_rho_ur] *shear_ur_prime;
+
+      //printf("DEBUG phi_pr and psi_pr = %e   and %e \n",ppw->pvecmetric[ppw->index_mt_phi_prime],ppw->pvecmetric[ppw->index_mt_psi_prime]);
+      //Does not work so far...
+
+      
       /* eventually, infer radiation streaming approximation for
          gamma and ur (this is exactly the right place to do it
          because the result depends on h_prime) */
@@ -9240,7 +9257,7 @@ int perturbations_derivs(double tau,
       /** - ----> synchronous gauge: cdm density only (velocity set to zero by definition of the gauge) */
 
       if (ppt->gauge == synchronous) {
-        dy[pv->index_pt_delta_cdm] = -metric_continuity ; /* cdm density */
+        dy[pv->index_pt_delta_cdm] = -metric_continuity -y[pv->index_pt_theta_cdm]; /* cdm density. PITROU I have added the theta_cdm term (since with a scalar field it is no more 0) */
 
 	if (pba->has_scf == _TRUE_)
 	  dy[pv->index_pt_theta_cdm] = - a_prime_over_a*y[pv->index_pt_theta_cdm]; /* cdm velocity */
@@ -9420,12 +9437,25 @@ int perturbations_derivs(double tau,
 
       /** - ----> Klein Gordon equation */
 
-      //PITROU_UZAN Only valid in Newtonian gauge !!!! Otherwise the equation is more involved and requires both phi_metric' and psi_metric'. phi_metric' is computed but not psi_metric' for the moment, hence it is impossible. A safety check aborts if Newtonian gauge
-      dy[pv->index_pt_phi_prime_scf] =  - 2.*a_prime_over_a*y[pv->index_pt_phi_prime_scf]
-        - metric_continuity*pvecback[pba->index_bg_phi_prime_scf] //  metric_continuity = h'/2 with h = -3 Psi_Uzan + Delta E_Uzan.
-        - (k2 + a2*pvecback[pba->index_bg_ddV_scf])*y[pv->index_pt_phi_scf]
-	- 3 * a2 * pvecback[pba->index_bg_rho_cdm] * (pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_delta_cdm] + pvecback[pba->index_bg_ddlnA_scf]*y[pv->index_pt_phi_scf]); //checked
+      if (ppt->gauge == synchronous) {
 
+	//PITROU_UZAN 
+	dy[pv->index_pt_phi_prime_scf] =  - 2.*a_prime_over_a*y[pv->index_pt_phi_prime_scf]
+	  - metric_continuity*pvecback[pba->index_bg_phi_prime_scf] //  metric_continuity = h'/2 with h = -3 Psi_Uzan + Delta E_Uzan.
+	  - (k2 + a2*pvecback[pba->index_bg_ddV_scf])*y[pv->index_pt_phi_scf]
+	  - 3 * a2 * pvecback[pba->index_bg_rho_cdm] * (pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_delta_cdm] + pvecback[pba->index_bg_ddlnA_scf]*y[pv->index_pt_phi_scf]); //checked
+      }
+
+      //Newtonian gauge does not work well. First the computation of psi' is not very accurate.
+      if (ppt->gauge == newtonian) {
+	dy[pv->index_pt_phi_prime_scf] =  - 2.*a_prime_over_a*y[pv->index_pt_phi_prime_scf]
+	  //+ pvecback[pba->index_bg_phi_prime_scf] *(3*pvecmetric[ppw->index_mt_phi_prime] +pvecmetric[ppw->index_mt_psi_prime]) //Here I put in CLASS notation 3 Phi' + Psi'. However computing Psi' is a nightmare. Therefore Newtonian gauge result is not exact.
+	  + pvecback[pba->index_bg_phi_prime_scf] *(4*pvecmetric[ppw->index_mt_phi_prime]) //Here I put in CLASS notation 4 Phi' 
+	  + 2 * a2 * pvecmetric[ppw->index_mt_psi] *( -pvecback[pba->index_bg_dV_scf] -(3./2.)*2.*pvecback[pba->index_bg_rho_cdm]*pvecback[pba->index_bg_dlnA_scf])
+	  - (k2 + a2*pvecback[pba->index_bg_ddV_scf])*y[pv->index_pt_phi_scf]
+	  - 3 * a2 * pvecback[pba->index_bg_rho_cdm] * (pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_delta_cdm] + pvecback[pba->index_bg_ddlnA_scf]*y[pv->index_pt_phi_scf]);
+      }
+	
     }
 
     /** - ---> ultra-relativistic neutrino/relics (ur) */

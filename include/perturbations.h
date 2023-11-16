@@ -536,6 +536,9 @@ struct perturbations_workspace
 
   int index_mt_psi;           /**< psi in longitudinal gauge */
   int index_mt_phi_prime;     /**< (d phi/d conf.time) in longitudinal gauge */
+  //PITROU_UZAN
+  int index_mt_psi_prime;     /**< (d psi/d conf.time) in longitudinal gauge */
+  
   int index_mt_h_prime;       /**< h' (wrt conf. time) in synchronous gauge */
   int index_mt_h_prime_prime; /**< h'' (wrt conf. time) in synchronous gauge */
   int index_mt_eta_prime;     /**< eta' (wrt conf. time) in synchronous gauge */
