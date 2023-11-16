@@ -1431,7 +1431,8 @@ int perturbations_indices(
         ppt->has_source_theta_tot = _TRUE_;
         ppt->has_source_theta_g = _TRUE_;
         ppt->has_source_theta_b = _TRUE_;
-        if ((pba->has_cdm == _TRUE_) && (ppt->gauge != synchronous))
+	//PITROU_UZAN
+        if ((pba->has_cdm == _TRUE_) && ((ppt->gauge != synchronous) || (pba->has_scf == _TRUE_)) )
           ppt->has_source_theta_cdm = _TRUE_;
         if (pba->has_idm == _TRUE_)
           ppt->has_source_theta_idm = _TRUE_;
@@ -4015,7 +4016,8 @@ int perturbations_vector_init(
     /* cdm */
 
     class_define_index(ppv->index_pt_delta_cdm,pba->has_cdm,index_pt,1); /* cdm density */
-    class_define_index(ppv->index_pt_theta_cdm,pba->has_cdm && (ppt->gauge == newtonian),index_pt,1); /* cdm velocity */
+    //PITROU_UZAN
+    class_define_index(ppv->index_pt_theta_cdm,pba->has_cdm && (ppt->gauge == newtonian || pba->has_scf == _TRUE_),index_pt,1); /* cdm velocity */
 
     /* idm */
     class_define_index(ppv->index_pt_delta_idm,pba->has_idm,index_pt,1); /* idm density */
@@ -4466,7 +4468,7 @@ int perturbations_vector_init(
         ppv->y[ppv->index_pt_delta_cdm] =
           ppw->pv->y[ppw->pv->index_pt_delta_cdm];
 
-        if (ppt->gauge == newtonian) {
+        if ( (ppt->gauge == newtonian) || (pba->has_scf == _TRUE_) ) {
           ppv->y[ppv->index_pt_theta_cdm] =
             ppw->pv->y[ppw->pv->index_pt_theta_cdm];
         }
@@ -5818,7 +5820,7 @@ int perturbations_initial_conditions(struct precision * ppr,
       ppw->pv->y[ppw->pv->index_pt_delta_b] -= 3.*a_prime_over_a*alpha;
       ppw->pv->y[ppw->pv->index_pt_theta_b] += k*k*alpha;
 
-      if (pba->has_cdm == _TRUE_) {
+      if (pba->has_cdm == _TRUE_)  {
         ppw->pv->y[ppw->pv->index_pt_delta_cdm] -= 3.*a_prime_over_a*alpha;
         ppw->pv->y[ppw->pv->index_pt_theta_cdm] = k*k*alpha;
       }
@@ -6973,7 +6975,7 @@ int perturbations_total_stress_energy(
     /* cdm contribution */
     if (pba->has_cdm == _TRUE_) {
       ppw->delta_rho += ppw->pvecback[pba->index_bg_rho_cdm]*y[ppw->pv->index_pt_delta_cdm]; // contribution to total perturbed stress-energy
-      if (ppt->gauge == newtonian)
+      if ( (ppt->gauge == newtonian) || (pba->has_scf == _TRUE_) )
         ppw->rho_plus_p_theta = ppw->rho_plus_p_theta + ppw->pvecback[pba->index_bg_rho_cdm]*y[ppw->pv->index_pt_theta_cdm]; // contribution to total perturbed stress-energy
 
       ppw->rho_plus_p_tot += ppw->pvecback[pba->index_bg_rho_cdm];
@@ -6983,7 +6985,7 @@ int perturbations_total_stress_energy(
         rho_m += ppw->pvecback[pba->index_bg_rho_cdm];
       }
       if ((ppt->has_source_delta_m == _TRUE_) || (ppt->has_source_theta_m == _TRUE_)) {
-        if (ppt->gauge == newtonian)
+        if ((ppt->gauge == newtonian) || (pba->has_scf == _TRUE_))
           rho_plus_p_theta_m += ppw->pvecback[pba->index_bg_rho_cdm]*y[ppw->pv->index_pt_theta_cdm]; // contribution to [(rho+p)theta]_matter
         rho_plus_p_m += ppw->pvecback[pba->index_bg_rho_cdm];
       }
@@ -8316,7 +8318,7 @@ int perturbations_print_variables(double tau,
     if (pba->has_cdm == _TRUE_) {
 
       delta_cdm = y[ppw->pv->index_pt_delta_cdm];
-      if (ppt->gauge == synchronous) {
+      if ((ppt->gauge == synchronous) && (pba->has_scf == _FALSE_) ){
         theta_cdm = 0.;
       }
       else {
@@ -9233,7 +9235,7 @@ int perturbations_derivs(double tau,
 	  +(pvecback[pba->index_bg_ddlnA_scf]*pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_phi_scf] + pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_phi_prime_scf]); /* cdm density */
 
         dy[pv->index_pt_theta_cdm] = - a_prime_over_a*y[pv->index_pt_theta_cdm] + metric_euler
-	  - pvecback[pba->index_bg_dlnA_scf] * (pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_phi_scf] - k2 * y[pv->index_pt_phi_scf]); /* cdm velocity */
+	  - pvecback[pba->index_bg_dlnA_scf] * (pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_theta_cdm] - k2 * y[pv->index_pt_phi_scf]); /* cdm velocity */
       }
 
       /** - ----> synchronous gauge: cdm density only (velocity set to zero by definition of the gauge) */
@@ -9241,6 +9243,10 @@ int perturbations_derivs(double tau,
       if (ppt->gauge == synchronous) {
         dy[pv->index_pt_delta_cdm] = -metric_continuity 
  	  + (pvecback[pba->index_bg_ddlnA_scf]*pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_phi_scf] + pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_phi_prime_scf]); /* cdm density */
+
+	if (pba->has_scf == _TRUE_)
+	  dy[pv->index_pt_theta_cdm] = - a_prime_over_a*y[pv->index_pt_theta_cdm]
+	    - pvecback[pba->index_bg_dlnA_scf] * (pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_theta_cdm] - k2 * y[pv->index_pt_phi_scf]); /* cdm velocity */
       }
     }
 
