@@ -2285,6 +2285,10 @@ int background_initial_conditions(
   if (pba->has_scf == _TRUE_) {
     pvecback_integration[pba->index_bi_phi_scf] = pba->phi_ini_scf;
     pvecback_integration[pba->index_bi_phi_prime_scf] = pba->phi_prime_ini_scf;
+
+    //PITROU_UZAN a good guess assuming final A is 1
+    pba->rescale_cdm = A_scf(pba, pba->phi_ini_scf)/A_scf(pba,0.);
+    printf("DEBUG pba->rescale_cdm = %e \n",pba->rescale_cdm);
     
     /*class_test(!isfinite(pvecback_integration[pba->index_bi_phi_scf]) ||
                !isfinite(pvecback_integration[pba->index_bi_phi_scf]),
