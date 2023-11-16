@@ -5888,6 +5888,7 @@ int input_default_params(struct background *pba,
   /** 9.b.2) Initial conditions from attractor solution */
   //pba->attractor_ic_scf = _TRUE_;
   //PITROU_UZAN TODO COmment
+  pba->has_scf = _FALSE_;
   pba->phi_ini_scf = 0.;                // MZ: initial conditions are as multiplicative
   pba->phi_prime_ini_scf = 0.;          //     factors of the radiation attractor values
   pba->phistar_scf = 1.;
