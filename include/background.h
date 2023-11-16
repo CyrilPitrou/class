@@ -18,6 +18,7 @@ enum spatial_curvature {flat,open,closed};
 
 enum equation_of_state {CLP,EDE};
 
+enum non_minimal_model {harmonic,axion};
 
 /** list of possible parametrizations of the varying fundamental constants */
 
@@ -118,6 +119,7 @@ struct background
   double Omega_EDE;        /**< \f$ wa_{DE} \f$: Early Dark Energy density parameter */
 
   //PITROU_UZAN
+  enum non_minimal_model Amodel;//Model type for A function
   double beta_scf; /** Parameter in the non-minimal coupling function A(phi) */
   double phistar_scf; /** Second parameter in the non-minimal couplign potential */
   //double * scf_parameters; /**< list of parameters describing the scalar field potential */
@@ -193,7 +195,8 @@ struct background
 
   //PITROU_UZAN
   int index_bg_A_scf;         /**< scalar field non-minimal coupling A */
-  int index_bg_dA_scf;        /**< scalar field non-minimal coupling derivative A' */
+  int index_bg_dlnA_scf;        /**< scalar field non-minimal coupling derivative d lnA / d phi */
+  int index_bg_ddlnA_scf;        /**< scalar field non-minimal coupling derivative d^2 ln A / d phi^2 */
   
   int index_bg_rho_scf;       /**< scalar field energy density */
   int index_bg_p_scf;         /**< scalar field pressure */
@@ -590,12 +593,16 @@ extern "C" {
                struct background *pba,
                double phi
                );
-
-  double dA_scf(
-                struct background *pba,
-                double phi
-                );
-
+  
+  double dlnA_scf(
+		  struct background *pba,
+		  double phi
+		  );
+  
+  double ddlnA_scf(
+		   struct background *pba,
+		   double phi
+		   );
   
 #ifdef __cplusplus
 }

@@ -3313,6 +3313,40 @@ int input_read_parameters_species(struct file_content * pfc,
   if (flag1 == _TRUE_){
     pba->phi_ini_scf = param1;
   }
+
+  class_call(parser_read_double(pfc,"phistar_scf",&param1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  if (flag1 == _TRUE_){
+    pba->phistar_scf = param1;
+  }
+
+  class_call(parser_read_double(pfc,"beta_scf",&param1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  if (flag1 == _TRUE_){
+    pba->beta_scf = param1;
+  }
+  
+  /* Read A model*/
+  class_call(parser_read_string(pfc,"non_minimal_model",&string1,&flag1,errmsg),
+	     errmsg,
+	     errmsg);
+  /* Complete set of parameters */
+  if (flag1 == _TRUE_) {
+    if ((strstr(string1,"harmonic") != NULL) || (strstr(string1,"Harmonic") != NULL)) {
+        pba->Amodel = harmonic;
+	printf("DEBUG choosing harmonic model for A(phi)\n");
+      }
+      else if ((strstr(string1,"axion") != NULL) || (strstr(string1,"Axion") != NULL)) {
+        pba->Amodel = axion;
+	printf("DEBUG choosing axion model for A(phi)\n");
+      }
+      else {
+        class_stop(errmsg,"incomprehensible input '%s' for the field 'non_minimal_model'",string1);
+      }
+  }
+  
   
   /** 8.b) If Omega scalar field (SCF) is different from 0 */
   //if (pba->Omega0_scf != 0.){
@@ -5856,9 +5890,10 @@ int input_default_params(struct background *pba,
   //PITROU_UZAN TODO COmment
   pba->phi_ini_scf = 0.;                // MZ: initial conditions are as multiplicative
   pba->phi_prime_ini_scf = 0.;          //     factors of the radiation attractor values
-  pba->phistar_scf = 0.3;
-  pba->beta_scf = .15;
+  pba->phistar_scf = 1.;
+  pba->beta_scf = 1.;
   pba->rescale_cdm = 1.;
+  pba->Amodel = axion;
   /** 9.b.3) Tuning parameter */
   //pba->scf_tuning_index = 0;
   /** 9.b.4) Shooting parameter */

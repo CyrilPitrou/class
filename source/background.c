@@ -446,8 +446,9 @@ int background_functions(
     pvecback[pba->index_bg_V_scf] = V_scf(pba,phi); //V_scf(pba,phi); //write here potential as function of phi
     pvecback[pba->index_bg_dV_scf] = dV_scf(pba,phi); // dV_scf(pba,phi); //potential' as function of phi
     pvecback[pba->index_bg_ddV_scf] = ddV_scf(pba,phi); // ddV_scf(pba,phi); //potential'' as function of phi
-    pvecback[pba->index_bg_A_scf] = A_scf(pba,phi); //V_scf(pba,phi); //write here potential as function of phi
-    pvecback[pba->index_bg_dA_scf] = dA_scf(pba,phi); // dV_scf(pba,phi); //potential' as function of phi
+    pvecback[pba->index_bg_A_scf] = A_scf(pba,phi); //A_scf(pba,phi); //
+    pvecback[pba->index_bg_dlnA_scf] = dlnA_scf(pba,phi); // d ln A_scf(pba,phi); //
+    pvecback[pba->index_bg_ddlnA_scf] = ddlnA_scf(pba,phi); // dd ln A_scf(pba,phi); //
     pvecback[pba->index_bg_rho_scf] = (phi_prime*phi_prime/(2*a*a) + V_scf(pba,phi))/3.; // energy of the scalar field. The field units are set automatically by setting the initial conditions
     pvecback[pba->index_bg_p_scf] =(phi_prime*phi_prime/(2*a*a) - V_scf(pba,phi))/3.; // pressure of the scalar field
     rho_tot += pvecback[pba->index_bg_rho_scf];
@@ -1084,7 +1085,8 @@ int background_indices(
   class_define_index(pba->index_bg_ddV_scf,pba->has_scf,index_bg,1);
   //PITROU_UZAN
   class_define_index(pba->index_bg_A_scf,pba->has_scf,index_bg,1);
-  class_define_index(pba->index_bg_dA_scf,pba->has_scf,index_bg,1);
+  class_define_index(pba->index_bg_dlnA_scf,pba->has_scf,index_bg,1);
+  class_define_index(pba->index_bg_ddlnA_scf,pba->has_scf,index_bg,1);
   
   class_define_index(pba->index_bg_rho_scf,pba->has_scf,index_bg,1);
   class_define_index(pba->index_bg_p_scf,pba->has_scf,index_bg,1);
@@ -2552,7 +2554,8 @@ int background_output_data(
 
     //PITROU_UZAN
     class_store_double(dataptr,pvecback[pba->index_bg_A_scf],pba->has_scf,storeidx);
-    class_store_double(dataptr,pvecback[pba->index_bg_dA_scf],pba->has_scf,storeidx);
+    class_store_double(dataptr,pvecback[pba->index_bg_dlnA_scf],pba->has_scf,storeidx);
+    class_store_double(dataptr,pvecback[pba->index_bg_ddlnA_scf],pba->has_scf,storeidx);
 
     class_store_double(dataptr,pvecback[pba->index_bg_rho_tot],_TRUE_,storeidx);
     class_store_double(dataptr,pvecback[pba->index_bg_p_tot],_TRUE_,storeidx);
@@ -2673,10 +2676,8 @@ int background_derivs(
         written as \f$ d\phi/dlna = phi' / (aH) \f$ and \f$ d\phi'/dlna = -2*phi' - (a/H) dV \f$ */
     dy[pba->index_bi_phi_scf] = y[pba->index_bi_phi_prime_scf]/a/H;
     //PITROU_UZAN
-    //printf("DEBUG dA_scf(pba,y[pba->index_bi_phi_scf] = %e \n",dA_scf(pba,y[pba->index_bi_phi_scf]) );
-    //printf("DEBUG pvecback[pba->index_bg_rho_cdm] = %e \n",pvecback[pba->index_bg_rho_cdm]);
     dy[pba->index_bi_phi_prime_scf] = - 2*y[pba->index_bi_phi_prime_scf] - a*dV_scf(pba,y[pba->index_bi_phi_scf])/H
-      -3./2.*2 * pvecback[pba->index_bg_rho_cdm] * dA_scf(pba,y[pba->index_bi_phi_scf])/A_scf(pba,y[pba->index_bi_phi_scf]) *a/H;
+      -3./2.*2 * pvecback[pba->index_bg_rho_cdm] * dlnA_scf(pba,y[pba->index_bi_phi_scf]) *a/H;
   }
 
   return _SUCCESS_;
@@ -3043,13 +3044,45 @@ double ddV_scf(
 double A_scf(
              struct background *pba,
              double phi) {
-  //return  1 + pba->beta_scf /2. *pow( (phi/_SQRT2_/pba->phistar_scf), 2) ;
-  return  1 + pba->beta_scf * (1- cos(phi/_SQRT2_/pba->phistar_scf) );
+  switch (pba->Amodel) {
+  case harmonic:
+    return  1 + pba->beta_scf /2. *pow( (phi/_SQRT2_/pba->phistar_scf), 2) ;
+  case axion:
+    return  1 + pba->beta_scf * (1- cos(phi/_SQRT2_/pba->phistar_scf) );
+  default:
+    printf("DEBUG the A model was wrongly chosen and the A function does not evaluate \n");
+  }
 }
 
-double dA_scf(
+double dlnA_scf(
               struct background *pba,
               double phi) {
-  //return  pba->beta_scf * (phi/_SQRT2_/pba->phistar_scf) / _SQRT2_ / pba->phistar_scf  ;
-  return pba->beta_scf * sin(phi/_SQRT2_/pba->phistar_scf) /pba->phistar_scf / _SQRT2_;
+  double A,dA;
+  A = A_scf(pba,phi);
+  switch (pba->Amodel) {
+  case harmonic:
+    dA = pba->beta_scf * (phi/_SQRT2_/pba->phistar_scf) / _SQRT2_ / pba->phistar_scf  ;
+    break;
+  case axion:
+    dA = pba->beta_scf * sin(phi/_SQRT2_/pba->phistar_scf) /pba->phistar_scf / _SQRT2_;
+    break;
+  }
+  return dA/A;
+}
+
+double ddlnA_scf(
+              struct background *pba,
+              double phi) {
+  double A,ddA,dlnA;
+  A = A_scf(pba,phi);
+  dlnA = dlnA_scf(pba,phi);
+  switch (pba->Amodel) {
+  case harmonic:
+    ddA = pba->beta_scf / pow(_SQRT2_*pba->phistar_scf,2);
+    break;
+  case axion:
+    ddA = pba->beta_scf * cos(phi/_SQRT2_/pba->phistar_scf) / pow(pba->phistar_scf*_SQRT2_,2);
+    break;
+  }
+  return ddA/A_scf(pba,phi) - pow(dlnA,2) ;
 }
