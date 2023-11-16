@@ -116,12 +116,20 @@ struct background
   double cs2_fld;  /**< \f$ c^2_{s~DE} \f$: sound speed of the fluid in the frame comoving with the fluid (so, this is
                       not [delta p/delta rho] in the synchronous or newtonian gauge!) */
   double Omega_EDE;        /**< \f$ wa_{DE} \f$: Early Dark Energy density parameter */
-  double * scf_parameters; /**< list of parameters describing the scalar field potential */
-  short attractor_ic_scf;  /**< whether the scalar field has attractor initial conditions */
-  int scf_tuning_index;    /**< index in scf_parameters used for tuning */
+
+  //PITROU_UZAN
+  double beta_scf; /** Parameter in the non-minimal coupling function A(phi) */
+  double phistar_scf; /** Second parameter in the non-minimal couplign potential */
+  //double * scf_parameters; /**< list of parameters describing the scalar field potential */
+  //short attractor_ic_scf;  /**< whether the scalar field has attractor initial conditions */
+  //int scf_tuning_index;    /**< index in scf_parameters used for tuning */
   double phi_ini_scf;      /**< \f$ \phi(t_0) \f$: scalar field initial value */
   double phi_prime_ini_scf;/**< \f$ d\phi(t_0)/d\tau \f$: scalar field initial derivative wrt conformal time */
-  int scf_parameters_size; /**< size of scf_parameters */
+  //int scf_parameters_size; /**< size of scf_parameters */
+
+  //PITROU_UZAN
+  double rescale_cdm; /** Initial rescalign of cold dark matter */
+  
   double varconst_alpha; /**< finestructure constant for varying fundamental constants */
   double varconst_me; /**< electron mass for varying fundamental constants */
   enum varconst_dependence varconst_dep; /**< dependence of the varying fundamental constants as a function of time */
@@ -182,6 +190,11 @@ struct background
   int index_bg_V_scf;         /**< scalar field potential V */
   int index_bg_dV_scf;        /**< scalar field potential derivative V' */
   int index_bg_ddV_scf;       /**< scalar field potential second derivative V'' */
+
+  //PITROU_UZAN
+  int index_bg_A_scf;         /**< scalar field non-minimal coupling A */
+  int index_bg_dA_scf;        /**< scalar field non-minimal coupling derivative A' */
+  
   int index_bg_rho_scf;       /**< scalar field energy density */
   int index_bg_p_scf;         /**< scalar field pressure */
   int index_bg_p_prime_scf;         /**< scalar field pressure */
