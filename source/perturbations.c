@@ -9270,7 +9270,7 @@ int perturbations_derivs(double tau,
 	
 	dy[pv->index_pt_delta_cdm] += (pvecback[pba->index_bg_ddlnA_scf]*pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_phi_scf] + pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_phi_prime_scf]);
 
-	dy[pv->index_pt_theta_cdm] +=  -1. * pvecback[pba->index_bg_dlnA_scf] * (pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_theta_cdm] - k2 * y[pv->index_pt_phi_scf]);
+	dy[pv->index_pt_theta_cdm] +=  -1. * pvecback[pba->index_bg_dlnA_scf] * (pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_theta_cdm]  - k2 * y[pv->index_pt_phi_scf]);
       }
     }
 
