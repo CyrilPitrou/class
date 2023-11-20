@@ -459,6 +459,8 @@ int background_functions(
     rho_m += pvecback[pba->index_bg_rho_scf] - 3.* pvecback[pba->index_bg_p_scf]; //the rest contributes matter
     //printf(" a= %e, Omega_scf = %f, \n ",a, pvecback[pba->index_bg_rho_scf]/rho_tot );
     ratio_A_over_A_ini = A_scf(pba,phi)/A_scf(pba,pba->phi_ini_scf);
+
+    pvecback[pba->index_bg_frac_nmc_scf] = pba->fraction_nmc*ratio_A_over_A_ini*pba->rescale_cdm / ((1-pba->fraction_nmc) + pba->fraction_nmc*ratio_A_over_A_ini*pba->rescale_cdm ) ;
     //printf("DEBUG ratio_A_over_A_ini = %e \n",ratio_A_over_A_ini);
   }
 
@@ -466,7 +468,9 @@ int background_functions(
   /* cdm */
   if (pba->has_cdm == _TRUE_) {
     //PITROU_UZAN add the A/A_i factor. TODO add the upscale
-    pvecback[pba->index_bg_rho_cdm] = pba->Omega0_cdm * pow(pba->H0,2) / pow(a,3) * ratio_A_over_A_ini * pba->rescale_cdm;
+    //printf("DEBUG pba->fraction_nmc = %e \n",pba->fraction_nmc);
+    pvecback[pba->index_bg_rho_cdm] = pba->Omega0_cdm * pow(pba->H0,2) / pow(a,3) * ( (1-pba->fraction_nmc) + pba->fraction_nmc*ratio_A_over_A_ini*pba->rescale_cdm );
+    //pvecback[pba->index_bg_rho_cdm] = pba->Omega0_cdm * pow(pba->H0,2) / pow(a,3) * ( pba->fraction_nmc*ratio_A_over_A_ini*pba->rescale_cdm );
     rho_tot += pvecback[pba->index_bg_rho_cdm];
     p_tot += 0.;
     rho_m += pvecback[pba->index_bg_rho_cdm];
@@ -1087,6 +1091,7 @@ int background_indices(
   class_define_index(pba->index_bg_A_scf,pba->has_scf,index_bg,1);
   class_define_index(pba->index_bg_dlnA_scf,pba->has_scf,index_bg,1);
   class_define_index(pba->index_bg_ddlnA_scf,pba->has_scf,index_bg,1);
+  class_define_index(pba->index_bg_frac_nmc_scf,pba->has_scf,index_bg,1);
   
   class_define_index(pba->index_bg_rho_scf,pba->has_scf,index_bg,1);
   class_define_index(pba->index_bg_p_scf,pba->has_scf,index_bg,1);
@@ -2477,7 +2482,8 @@ int background_output_titles(
 
   //PITROU_UZAN
   class_store_columntitle(titles,"A_scf",pba->has_scf);
-  class_store_columntitle(titles,"A'_scf",pba->has_scf);
+  class_store_columntitle(titles,"(ln A_scf)'",pba->has_scf);
+  class_store_columntitle(titles,"(ln A_scf)''",pba->has_scf);
   
   class_store_columntitle(titles,"(.)rho_tot",_TRUE_);
   class_store_columntitle(titles,"(.)p_tot",_TRUE_);
@@ -2556,6 +2562,7 @@ int background_output_data(
     class_store_double(dataptr,pvecback[pba->index_bg_A_scf],pba->has_scf,storeidx);
     class_store_double(dataptr,pvecback[pba->index_bg_dlnA_scf],pba->has_scf,storeidx);
     class_store_double(dataptr,pvecback[pba->index_bg_ddlnA_scf],pba->has_scf,storeidx);
+    //class_store_double(dataptr,pvecback[pba->index_bg_frac_nmc_scf],pba->has_scf,storeidx);
 
     class_store_double(dataptr,pvecback[pba->index_bg_rho_tot],_TRUE_,storeidx);
     class_store_double(dataptr,pvecback[pba->index_bg_p_tot],_TRUE_,storeidx);
@@ -2677,7 +2684,7 @@ int background_derivs(
     dy[pba->index_bi_phi_scf] = y[pba->index_bi_phi_prime_scf]/a/H;
     //PITROU_UZAN
     dy[pba->index_bi_phi_prime_scf] = - 2*y[pba->index_bi_phi_prime_scf] - a*dV_scf(pba,y[pba->index_bi_phi_scf])/H
-      -3./2.*2 * pvecback[pba->index_bg_rho_cdm] * dlnA_scf(pba,y[pba->index_bi_phi_scf]) *a/H;
+      -3./2.*2 * pvecback[pba->index_bg_frac_nmc_scf] *pvecback[pba->index_bg_rho_cdm] * dlnA_scf(pba,y[pba->index_bi_phi_scf]) *a/H;
   }
 
   return _SUCCESS_;

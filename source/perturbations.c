@@ -5580,7 +5580,7 @@ int perturbations_initial_conditions(struct precision * ppr,
          *  with \f$ c_s^2 = 1 \f$ and w = 1/3 (ASSUMES radiation TRACKING)
          */
 
-        ppw->pv->y[ppw->pv->index_pt_phi_scf] = 0.;
+        ppw->pv->y[ppw->pv->index_pt_phi_scf] = -ppw->pvecback[pba->index_bg_ddlnA_scf]/ppw->pvecback[pba->index_bg_dlnA_scf] * ppw->pv->y[ppw->pv->index_pt_delta_cdm];
         /*  a*a/k/k/ppw->pvecback[pba->index_bg_phi_prime_scf]*k*ktau_three/4.*1./(4.-6.*(1./3.)+3.*1.) * (ppw->pvecback[pba->index_bg_rho_scf] + ppw->pvecback[pba->index_bg_p_scf])* ppr->curvature_ini * s2_squared; */
 
         ppw->pv->y[ppw->pv->index_pt_phi_prime_scf] = 0.;
@@ -5794,12 +5794,14 @@ int perturbations_initial_conditions(struct precision * ppr,
       }
       if (pba->has_dcdm == _TRUE_){
         delta_cdm += ppw->pvecback[pba->index_bg_rho_dcdm] * ppw->pv->y[ppw->pv->index_pt_delta_dcdm];
+
         rho_cdm += ppw->pvecback[pba->index_bg_rho_dcdm];
       }
 
 
       if (rho_cdm > 0 ) {
         delta_cdm /= rho_cdm;
+	
         fraccdm = rho_cdm/rho_m;
       }
 
@@ -5826,6 +5828,10 @@ int perturbations_initial_conditions(struct precision * ppr,
 
       if (pba->has_cdm == _TRUE_)  {
         ppw->pv->y[ppw->pv->index_pt_delta_cdm] -= 3.*a_prime_over_a*alpha;
+
+	//PITROU_UZAN HACK WARNING
+	//ppw->pv->y[ppw->pv->index_pt_delta_cdm] /= 100.;
+	
         ppw->pv->y[ppw->pv->index_pt_theta_cdm] = k*k*alpha;
       }
 
@@ -8504,13 +8510,14 @@ int perturbations_print_variables(double tau,
       }
 
       if (pba->has_dcdm == _TRUE_) {
-        delta_dcdm += alpha*(-a*pba->Gamma_dcdm-3.*a*H);
+	delta_dcdm += alpha*(-a*pba->Gamma_dcdm-3.*a*H);
         theta_dcdm += k*k*alpha;
       }
 
       if (pba->has_scf == _TRUE_) {
-        delta_scf += alpha*(-3.0*H*(1.0+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf]));
-        theta_scf += k*k*alpha;
+        //delta_scf += alpha*(-3.0*H*(1.0+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf]));//Seems strange formula. The factor a is missing in front of H.
+	delta_scf += alpha*(-3.0*H*a*(1.0+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf]));//Corrected version by PITROU
+	theta_scf += k*k*alpha;
       }
 
     }
@@ -9268,9 +9275,9 @@ int perturbations_derivs(double tau,
       //PITROU_UZAN add contribution for non minimally coupled scalar field. This is for both gauges.
       if (pba->has_scf == _TRUE_) {
 	
-	dy[pv->index_pt_delta_cdm] += (pvecback[pba->index_bg_ddlnA_scf]*pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_phi_scf] + pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_phi_prime_scf]);
+	dy[pv->index_pt_delta_cdm] += pvecback[pba->index_bg_frac_nmc_scf] * (pvecback[pba->index_bg_ddlnA_scf]*pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_phi_scf] + pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_phi_prime_scf]);
 
-	dy[pv->index_pt_theta_cdm] +=  -1. * pvecback[pba->index_bg_dlnA_scf] * (pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_theta_cdm]  - k2 * y[pv->index_pt_phi_scf]);
+	dy[pv->index_pt_theta_cdm] +=  (-1.) * pvecback[pba->index_bg_frac_nmc_scf] * pvecback[pba->index_bg_dlnA_scf] * (pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_theta_cdm]  -  k2 * y[pv->index_pt_phi_scf]);
       }
     }
 
@@ -9445,7 +9452,7 @@ int perturbations_derivs(double tau,
 	dy[pv->index_pt_phi_prime_scf] =  - 2.*a_prime_over_a*y[pv->index_pt_phi_prime_scf]
 	  - metric_continuity*pvecback[pba->index_bg_phi_prime_scf] //  metric_continuity = h'/2 with h = -3 Psi_Uzan + Delta E_Uzan.
 	  - (k2 + a2*pvecback[pba->index_bg_ddV_scf])*y[pv->index_pt_phi_scf]
-	  - 3 * a2 * pvecback[pba->index_bg_rho_cdm] * (pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_delta_cdm] + pvecback[pba->index_bg_ddlnA_scf]*y[pv->index_pt_phi_scf]); //checked
+	  - 3 * a2 * pvecback[pba->index_bg_rho_cdm] *pvecback[pba->index_bg_frac_nmc_scf]* (pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_delta_cdm] + pvecback[pba->index_bg_ddlnA_scf]*y[pv->index_pt_phi_scf]); //checked
       }
 
       //Newtonian gauge does not work well. First the computation of psi' is not very accurate.
@@ -9453,9 +9460,9 @@ int perturbations_derivs(double tau,
 	dy[pv->index_pt_phi_prime_scf] =  - 2.*a_prime_over_a*y[pv->index_pt_phi_prime_scf]
 	  //+ pvecback[pba->index_bg_phi_prime_scf] *(3*pvecmetric[ppw->index_mt_phi_prime] +pvecmetric[ppw->index_mt_psi_prime]) //Here I put in CLASS notation 3 Phi' + Psi'. However computing Psi' is a nightmare. Therefore Newtonian gauge result is not exact.
 	  + pvecback[pba->index_bg_phi_prime_scf] *(4*pvecmetric[ppw->index_mt_phi_prime]) //Here I put in CLASS notation 4 Phi' 
-	  + 2 * a2 * pvecmetric[ppw->index_mt_psi] *( -pvecback[pba->index_bg_dV_scf] -(3./2.)*2.*pvecback[pba->index_bg_rho_cdm]*pvecback[pba->index_bg_dlnA_scf])
+	  + 2 * a2 * pvecmetric[ppw->index_mt_psi] *( -pvecback[pba->index_bg_dV_scf] -(3./2.)*2.*pvecback[pba->index_bg_frac_nmc_scf]*pvecback[pba->index_bg_rho_cdm]*pvecback[pba->index_bg_dlnA_scf])
 	  - (k2 + a2*pvecback[pba->index_bg_ddV_scf])*y[pv->index_pt_phi_scf]
-	  - 3 * a2 * pvecback[pba->index_bg_rho_cdm] * (pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_delta_cdm] + pvecback[pba->index_bg_ddlnA_scf]*y[pv->index_pt_phi_scf]);
+	  - 3 * a2 * pvecback[pba->index_bg_rho_cdm] *pvecback[pba->index_bg_frac_nmc_scf]* (pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_delta_cdm] + pvecback[pba->index_bg_ddlnA_scf]*y[pv->index_pt_phi_scf]);
       }
 	
     }

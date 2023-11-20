@@ -127,6 +127,7 @@ struct background
   //int scf_tuning_index;    /**< index in scf_parameters used for tuning */
   double phi_ini_scf;      /**< \f$ \phi(t_0) \f$: scalar field initial value */
   double phi_prime_ini_scf;/**< \f$ d\phi(t_0)/d\tau \f$: scalar field initial derivative wrt conformal time */
+  double fraction_nmc;/** Fraction of CDM which is non-minimally coupled with the A function */
   //int scf_parameters_size; /**< size of scf_parameters */
 
   //PITROU_UZAN
@@ -197,6 +198,7 @@ struct background
   int index_bg_A_scf;         /**< scalar field non-minimal coupling A */
   int index_bg_dlnA_scf;        /**< scalar field non-minimal coupling derivative d lnA / d phi */
   int index_bg_ddlnA_scf;        /**< scalar field non-minimal coupling derivative d^2 ln A / d phi^2 */
+  int index_bg_frac_nmc_scf;        /**<current fraction at a given time of non-minimally coupled CDM (fraction among all CDM)*/ 
   
   int index_bg_rho_scf;       /**< scalar field energy density */
   int index_bg_p_scf;         /**< scalar field pressure */

@@ -3327,6 +3327,14 @@ int input_read_parameters_species(struct file_content * pfc,
   if (flag1 == _TRUE_){
     pba->beta_scf = param1;
   }
+
+  class_call(parser_read_double(pfc,"fraction_nmc",&param1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  if (flag1 == _TRUE_){
+    pba->fraction_nmc = param1;
+  }
+
   
   /* Read A model*/
   class_call(parser_read_string(pfc,"non_minimal_model",&string1,&flag1,errmsg),
@@ -5895,6 +5903,7 @@ int input_default_params(struct background *pba,
   pba->beta_scf = 1.;
   pba->rescale_cdm = 1.;
   pba->Amodel = axion;
+  pba->fraction_nmc = 1;
   /** 9.b.3) Tuning parameter */
   //pba->scf_tuning_index = 0;
   /** 9.b.4) Shooting parameter */
