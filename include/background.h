@@ -132,6 +132,7 @@ struct background
 
   //PITROU_UZAN
   double rescale_cdm; /** Initial rescalign of cold dark matter */
+  double mismatch_cdm; /** Mismatch parameter needed to shoot and obtain the correct final cdm density */
   
   double varconst_alpha; /**< finestructure constant for varying fundamental constants */
   double varconst_me; /**< electron mass for varying fundamental constants */

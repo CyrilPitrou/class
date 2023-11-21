@@ -2174,6 +2174,7 @@ int background_initial_conditions(
   double scf_lambda;
   double rho_fld_today;
   double w_fld,dw_over_da_fld,integral_fld;
+  double rho_cdm_init;
 
   /** - fix initial value of \f$ a \f$ */
   a = ppr->a_ini_over_a_today_default;
@@ -2290,12 +2291,18 @@ int background_initial_conditions(
    * - is rho_ur all there is early on?
    */
   if (pba->has_scf == _TRUE_) {
+    //PITROU_UZAN a good guess assuming final A is 1
+    //If no shooting was used then we put the best guess we can have
+    if (pba->rescale_cdm == 1)
+      pba->rescale_cdm = A_scf(pba, pba->phi_ini_scf)/A_scf(pba,0.);
+    printf("DEBUG pba->rescale_cdm = %.20e \n",pba->rescale_cdm);
+    
     pvecback_integration[pba->index_bi_phi_scf] = pba->phi_ini_scf;
     pvecback_integration[pba->index_bi_phi_prime_scf] = pba->phi_prime_ini_scf;
 
-    //PITROU_UZAN a good guess assuming final A is 1
-    pba->rescale_cdm = A_scf(pba, pba->phi_ini_scf)/A_scf(pba,0.);
-    printf("DEBUG pba->rescale_cdm = %e \n",pba->rescale_cdm);
+    //I attempted an attractor but it is not working yet.
+    //rho_cdm_init = pba->Omega0_cdm * pow(pba->H0,2) / pow(a,3) * ( (1-pba->fraction_nmc) + pba->fraction_nmc*pba->rescale_cdm );
+    //pvecback_integration[pba->index_bi_phi_prime_scf] = a*a*(-dV_scf(pba,pba->phi_ini_scf) -3/2.*2.* rho_cdm_init *dlnA_scf(pba,pba->phi_ini_scf) )/(2 * a * pvecback[pba->index_bg_H]);
     
     /*class_test(!isfinite(pvecback_integration[pba->index_bi_phi_scf]) ||
                !isfinite(pvecback_integration[pba->index_bi_phi_scf]),

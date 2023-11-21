@@ -523,6 +523,7 @@ int input_shooting(struct file_content * pfc,
   /* array of parameters passed by the user for which we need shooting (= target parameters) */
   char * const target_namestrings[] = {"100*theta_s",
                                        "theta_s_100",
+				       "mismatch_cdm",
                                        "Omega_dcdmdr",
                                        "omega_dcdmdr",
                                        //"Omega_scf",//PITROU_UZAN
@@ -532,6 +533,7 @@ int input_shooting(struct file_content * pfc,
   /* array of corresponding parameters that must be adjusted in order to meet the target (= unknown parameters) */
   char * const unknown_namestrings[] = {"h",                        /* unknown param for target '100*theta_s' */
                                         "h",                        /* unknown param for target 'theta_s_100' */
+					"rescale_cdm",
                                         "Omega_ini_dcdm",           /* unknown param for target 'Omega_dcdmd' */
                                         "omega_ini_dcdm",           /* unknown param for target 'omega_dcdmdr' */
                                         //"scf_shooting_parameter",   /* unknown param for target 'Omega_scf' */
@@ -543,6 +545,7 @@ int input_shooting(struct file_content * pfc,
      each time to saves a lot of time) */
   enum computation_stage target_cs[] = {cs_thermodynamics, /* computation stage for target '100*theta_s' */
                                         cs_thermodynamics, /* computation stage for target 'theta_s_100' */
+					cs_background,
                                         cs_background,     /* computation stage for target 'Omega_dcdmdr' */
                                         cs_background,     /* computation stage for target 'omega_dcdmdr' */
                                         //cs_background,     /* computation stage for target 'Omega_scf' */
@@ -563,7 +566,7 @@ int input_shooting(struct file_content * pfc,
                errmsg,
                errmsg);
     if (flag1 == _TRUE_){
-      /* input_needs_shoting_for_target takes care of the case where, for
+      /* input_needs_shooting_for_target takes care of the case where, for
          instance, Omega_dcdmdr is set to 0.0, and we don't need shooting */
       class_call(input_needs_shooting_for_target(pfc,
                                                  index_target,
@@ -572,7 +575,7 @@ int input_shooting(struct file_content * pfc,
                                                  errmsg),
                  errmsg,
                  errmsg);
-
+      
       if (needs_shooting == _TRUE_){
         target_indices[unknown_parameters_size] = index_target;
         fzw.required_computation_stage = MAX(fzw.required_computation_stage,target_cs[index_target]);
@@ -582,6 +585,8 @@ int input_shooting(struct file_content * pfc,
     }
   }
 
+  printf("DEBUG number of shooting parameters are %d\n",unknown_parameters_size);
+  
   /** In the case of unknown parameters, start shooting... */
   if (unknown_parameters_size > 0) {
 
@@ -898,6 +903,10 @@ int input_needs_shooting_for_target(struct file_content * pfc,
 
   *needs_shooting = _TRUE_;
   switch (target_name){
+  case mismatch_cdm:
+    if (target_value == -1)
+      *needs_shooting = _FALSE_;
+    break;
   case Omega_dcdmdr:
   case omega_dcdmdr:
     //case Omega_scf: //PITROU_UZAN
@@ -944,11 +953,12 @@ int input_find_root(double *xzero,
   int iter, iter2;
   int return_function;
 
-  /** Fisrt we do our guess */
+  /** First we do our guess */
   class_call(input_get_guess(&x1, &dxdy, pfzw, errmsg),
              errmsg,
              errmsg);
 
+  printf("DEBUG get guess x1=%.15e \n",x1);
   class_call(input_fzerofun_1d(x1, pfzw, &f1, errmsg),
              errmsg,
              errmsg);
@@ -983,6 +993,8 @@ int input_find_root(double *xzero,
     f1 = f2;
   }
 
+
+  printf("DEBUG we now call fzero_ridder with x1=%e and x2=%e\n",x1,x2);
   /** Find root using Ridders method (Exchange for bisection if you are old-school) */
   class_call(input_fzero_ridder(input_fzerofun_1d,
                                 x1,
@@ -1018,6 +1030,8 @@ int input_fzerofun_1d(double input,
                       double *output,
                       ErrorMsg error_message){
 
+  printf("DEBUG start input_try_parameters\n");
+  
   class_call(input_try_unknown_parameters(&input,
                                           1,
                                           pfzw,
@@ -1026,7 +1040,7 @@ int input_fzerofun_1d(double input,
              error_message,
              error_message);
 
-  return _SUCCESS_;
+   return _SUCCESS_;
 
 }
 
@@ -1207,6 +1221,11 @@ int input_get_guess(double *xguess,
       ba.h = xguess[index_guess];
       ba.H0 = ba.h *  1.e5 / _c_;
       break;
+    case mismatch_cdm:
+      xguess[index_guess] = A_scf(&ba,ba.phi_ini_scf) /A_scf(&ba,0) * (1. + pfzw->target_value[index_guess]/ba.fraction_nmc);
+      dxdy[index_guess] = A_scf(&ba,ba.phi_ini_scf) /A_scf(&ba,0) /ba.fraction_nmc ;
+      ba.rescale_cdm = xguess[index_guess];
+      break;
     case Omega_dcdmdr:
       Omega_M = ba.Omega0_cdm+ba.Omega0_idm+ba.Omega0_dcdmdr+ba.Omega0_b;
       /* *
@@ -1341,7 +1360,8 @@ int input_try_unknown_parameters(double * unknown_parameter,
   int flag;
   int param;
   short compute_sigma8 = _FALSE_;
-
+  double rho_cdm_today, rho_cdm_goal;
+  
   pfzw = (struct fzerofun_workspace *) voidpfzw;
   /** Read input parameters */
   // This needs to be done with enough accuracy. A standard double has a relative
@@ -1459,6 +1479,12 @@ int input_try_unknown_parameters(double * unknown_parameter,
     case theta_s:
     case theta_s_100:
       output[i] = 100.*th.rs_rec/th.ra_rec-pfzw->target_value[i];
+      break;
+    case mismatch_cdm:
+      rho_cdm_today = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_cdm];
+      rho_cdm_goal = ba.Omega0_cdm * pow(ba.H0,2);
+      output[i] = rho_cdm_today/rho_cdm_goal -1;
+      printf("DEBUG input_try_parameters I compute mismatch = %.15e \n",output[i]);
       break;
     case Omega_dcdmdr:
       rho_dcdm_today = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_dcdm];
@@ -3333,6 +3359,13 @@ int input_read_parameters_species(struct file_content * pfc,
              errmsg);
   if (flag1 == _TRUE_){
     pba->fraction_nmc = param1;
+  }
+
+  class_call(parser_read_double(pfc,"rescale_cdm",&param1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  if (flag1 == _TRUE_){
+    pba->rescale_cdm = param1;
   }
 
   
@@ -5901,9 +5934,11 @@ int input_default_params(struct background *pba,
   pba->phi_prime_ini_scf = 0.;          //     factors of the radiation attractor values
   pba->phistar_scf = 1.;
   pba->beta_scf = 1.;
+  //printf("DEBUG I will now set the default rescale_cdm = 1 !!!\n");
   pba->rescale_cdm = 1.;
   pba->Amodel = axion;
   pba->fraction_nmc = 1;
+  pba->mismatch_cdm = -1;//if -1 then no shooting to improve the final cdm density wrt to the desired one.
   /** 9.b.3) Tuning parameter */
   //pba->scf_tuning_index = 0;
   /** 9.b.4) Shooting parameter */
