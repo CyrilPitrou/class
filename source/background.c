@@ -546,7 +546,7 @@ int background_functions(
 
   /* Lambda */
   if (pba->has_lambda == _TRUE_) {
-    pvecback[pba->index_bg_rho_lambda] = pba->Omega0_lambda * pow(pba->H0,2);
+    pvecback[pba->index_bg_rho_lambda] = pba->rescale_free*pba->Omega0_lambda * pow(pba->H0,2);
     rho_tot += pvecback[pba->index_bg_rho_lambda];
     p_tot -= pvecback[pba->index_bg_rho_lambda];
   }
@@ -2266,7 +2266,7 @@ int background_initial_conditions(
   if (pba->has_fld == _TRUE_) {
 
     /* rho_fld today */
-    rho_fld_today = pba->Omega0_fld * pow(pba->H0,2);
+    rho_fld_today = pba->rescale_free*pba->Omega0_fld * pow(pba->H0,2);
 
     /* integrate rho_fld(a) from a_ini to a_0, to get rho_fld(a_ini) given rho_fld(a0) */
     class_call(background_w_fld(pba,a,&w_fld,&dw_over_da_fld,&integral_fld), pba->error_message, pba->error_message);
@@ -2293,9 +2293,11 @@ int background_initial_conditions(
   if (pba->has_scf == _TRUE_) {
     //PITROU_UZAN a good guess assuming final A is 1
     //If no shooting was used then we put the best guess we can have
-    if (pba->rescale_cdm == 1)
+    if (pba->rescale_cdm == 1) {
       pba->rescale_cdm = A_scf(pba, pba->phi_ini_scf)/A_scf(pba,0.);
-    printf("DEBUG pba->rescale_cdm = %.20e \n",pba->rescale_cdm);
+    }
+    //printf("DEBUG pba->rescale_cdm = %.20e \n",pba->rescale_cdm);
+    //printf("DEBUG pba->rescale_free = %.20e \n",pba->rescale_free);
     
     pvecback_integration[pba->index_bi_phi_scf] = pba->phi_ini_scf;
     pvecback_integration[pba->index_bi_phi_prime_scf] = pba->phi_prime_ini_scf;
@@ -2876,11 +2878,11 @@ int background_output_budget(
     }
     if (pba->has_lambda == _TRUE_) {
       class_print_species("Cosmological Constant",lambda);
-      budget_other+=pba->Omega0_lambda;
+      budget_other+= pba->rescale_free*pba->Omega0_lambda;
     }
     if (pba->has_fld == _TRUE_) {
       class_print_species("Dark Energy Fluid",fld);
-      budget_other+=pba->Omega0_fld;
+      budget_other+= pba->rescale_free*pba->Omega0_fld;
     }
     if (pba->has_scf == _TRUE_) {
       class_print_species("Scalar Field",scf);

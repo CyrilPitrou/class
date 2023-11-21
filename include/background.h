@@ -132,7 +132,9 @@ struct background
 
   //PITROU_UZAN
   double rescale_cdm; /** Initial rescalign of cold dark matter */
-  double mismatch_cdm; /** Mismatch parameter needed to shoot and obtain the correct final cdm density */
+  double rescale_free; /** Initial rescalign of lambda (or its equivalent quintessence fluid), aka the component which is free and adjusted to get the sum_i Omega_i = 1 */
+  double mismatch_cdm; /** Mismatch parameter needed to shoot the variable rescale_cdm and obtain the correct final cdm density */
+  double mismatch_free; /**Mismatch parameter needed to shoot the variable rescale_free and obtain the correct final sum_i Omega_i = 1 */
   
   double varconst_alpha; /**< finestructure constant for varying fundamental constants */
   double varconst_me; /**< electron mass for varying fundamental constants */

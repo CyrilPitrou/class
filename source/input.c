@@ -524,6 +524,7 @@ int input_shooting(struct file_content * pfc,
   char * const target_namestrings[] = {"100*theta_s",
                                        "theta_s_100",
 				       "mismatch_cdm",
+				       "mismatch_free",
                                        "Omega_dcdmdr",
                                        "omega_dcdmdr",
                                        //"Omega_scf",//PITROU_UZAN
@@ -533,7 +534,8 @@ int input_shooting(struct file_content * pfc,
   /* array of corresponding parameters that must be adjusted in order to meet the target (= unknown parameters) */
   char * const unknown_namestrings[] = {"h",                        /* unknown param for target '100*theta_s' */
                                         "h",                        /* unknown param for target 'theta_s_100' */
-					"rescale_cdm",
+					"rescale_cdm",   /*Rescaling parameter to make sure final CDM is the desired one */
+					"rescale_free", /*Rescaling parameter to make sure the sum of Omega is 1 (since the scf is omitted in the first sum of energy densities, we must adapt teh lambda slightly) */
                                         "Omega_ini_dcdm",           /* unknown param for target 'Omega_dcdmd' */
                                         "omega_ini_dcdm",           /* unknown param for target 'omega_dcdmdr' */
                                         //"scf_shooting_parameter",   /* unknown param for target 'Omega_scf' */
@@ -545,7 +547,8 @@ int input_shooting(struct file_content * pfc,
      each time to saves a lot of time) */
   enum computation_stage target_cs[] = {cs_thermodynamics, /* computation stage for target '100*theta_s' */
                                         cs_thermodynamics, /* computation stage for target 'theta_s_100' */
-					cs_background,
+					cs_background, /* computation stage for 'mismatch_cdm' */
+					cs_background, /* computation stage for 'mismatch_lambda' */ 
                                         cs_background,     /* computation stage for target 'Omega_dcdmdr' */
                                         cs_background,     /* computation stage for target 'omega_dcdmdr' */
                                         //cs_background,     /* computation stage for target 'Omega_scf' */
@@ -694,6 +697,7 @@ int input_shooting(struct file_content * pfc,
                  errmsg,
                  errmsg);
 
+      //printf("DEBUG first guesses are %.15e and %.15e \n",x_inout[0],x_inout[1]);
       /* Use multi-dimensional Newton method */
       class_call_try(fzero_Newton(input_try_unknown_parameters,
                                   x_inout,
@@ -907,6 +911,10 @@ int input_needs_shooting_for_target(struct file_content * pfc,
     if (target_value == -1)
       *needs_shooting = _FALSE_;
     break;
+  case mismatch_free:
+    if (target_value == -1)
+      *needs_shooting = _FALSE_;
+    break;
   case Omega_dcdmdr:
   case omega_dcdmdr:
     //case Omega_scf: //PITROU_UZAN
@@ -958,7 +966,7 @@ int input_find_root(double *xzero,
              errmsg,
              errmsg);
 
-  printf("DEBUG get guess x1=%.15e \n",x1);
+  //printf("DEBUG get guess x1=%.15e \n",x1);
   class_call(input_fzerofun_1d(x1, pfzw, &f1, errmsg),
              errmsg,
              errmsg);
@@ -994,7 +1002,7 @@ int input_find_root(double *xzero,
   }
 
 
-  printf("DEBUG we now call fzero_ridder with x1=%e and x2=%e\n",x1,x2);
+  //printf("DEBUG we now call fzero_ridder with x1=%e and x2=%e\n",x1,x2);
   /** Find root using Ridders method (Exchange for bisection if you are old-school) */
   class_call(input_fzero_ridder(input_fzerofun_1d,
                                 x1,
@@ -1030,7 +1038,7 @@ int input_fzerofun_1d(double input,
                       double *output,
                       ErrorMsg error_message){
 
-  printf("DEBUG start input_try_parameters\n");
+  //printf("DEBUG start input_try_parameters\n");
   
   class_call(input_try_unknown_parameters(&input,
                                           1,
@@ -1225,7 +1233,13 @@ int input_get_guess(double *xguess,
       xguess[index_guess] = A_scf(&ba,ba.phi_ini_scf) /A_scf(&ba,0) * (1. + pfzw->target_value[index_guess]/ba.fraction_nmc);
       dxdy[index_guess] = A_scf(&ba,ba.phi_ini_scf) /A_scf(&ba,0) /ba.fraction_nmc ;
       ba.rescale_cdm = xguess[index_guess];
+      //printf("DEBUG guess for rescale_cdm is %e\n",xguess[index_guess]);
       break;
+    case mismatch_free:
+      xguess[index_guess] = 1. + pfzw->target_value[index_guess]/(ba.Omega0_lambda + ba.Omega0_fld);
+      dxdy[index_guess] = 1 / (ba.Omega0_lambda + ba.Omega0_fld);
+      //printf("DEBUG guess for rescale_free is %e\n",xguess[index_guess]);
+      break;	    
     case Omega_dcdmdr:
       Omega_M = ba.Omega0_cdm+ba.Omega0_idm+ba.Omega0_dcdmdr+ba.Omega0_b;
       /* *
@@ -1484,7 +1498,11 @@ int input_try_unknown_parameters(double * unknown_parameter,
       rho_cdm_today = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_cdm];
       rho_cdm_goal = ba.Omega0_cdm * pow(ba.H0,2);
       output[i] = rho_cdm_today/rho_cdm_goal -1;
-      printf("DEBUG input_try_parameters I compute mismatch = %.15e \n",output[i]);
+      //printf("DEBUG mismatch_cdm = %.15e \n",output[i]);
+      break;
+    case mismatch_free:
+      output[i] = pow(ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_H]/ba.H0, 2) -1;
+      //printf("DEBUG mismatch_free = %.15e \n",output[i]);
       break;
     case Omega_dcdmdr:
       rho_dcdm_today = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_dcdm];
@@ -2144,7 +2162,7 @@ int input_read_parameters_general(struct file_content * pfc,
     pba->H0 = param2*1.e5/_c_;
     pba->h = param2;
   }
-  printf("DEBUG H0 is %e \n",pba->H0);
+  //printf("DEBUG H0 is %e \n",pba->H0);
 
 
   /** 6) Primordial helium fraction */
@@ -3200,7 +3218,7 @@ int input_read_parameters_species(struct file_content * pfc,
       Omega_0_lambda (cosmological constant), Omega0_fld (dark energy
       fluid), Omega0_scf (scalar field) */
   /* Read */
-  printf("DEBUG Read Omega_L,fld,scf \n");
+  //printf("DEBUG Read Omega_L,fld,scf \n");
   class_call(parser_read_double(pfc,"Omega_Lambda",&param1,&flag1,errmsg),
              errmsg,
              errmsg);
@@ -3258,14 +3276,14 @@ int input_read_parameters_species(struct file_content * pfc,
   /* Step 2 */
   if (flag1 == _FALSE_) {
     /* Fill with Lambda */
-    pba->Omega0_lambda= 1. - pba->Omega0_k - Omega_tot;
+    pba->Omega0_lambda= (1. - pba->Omega0_k - Omega_tot );
     if (input_verbose > 0){
       printf(" -> matched budget equations by adjusting Omega_Lambda = %g\n",pba->Omega0_lambda);
     }
   }
   else if (flag2 == _FALSE_) {
     /* Fill up with fluid */
-    pba->Omega0_fld = 1. - pba->Omega0_k - Omega_tot;
+    pba->Omega0_fld = (1. - pba->Omega0_k - Omega_tot );
     if (input_verbose > 0){
       printf(" -> matched budget equations by adjusting Omega_fld = %g\n",pba->Omega0_fld);
     }
@@ -3361,11 +3379,22 @@ int input_read_parameters_species(struct file_content * pfc,
     pba->fraction_nmc = param1;
   }
 
+
+  //Input of rescale parameters (needed for the shooting procedure where this is the only case where it should be read)
   class_call(parser_read_double(pfc,"rescale_cdm",&param1,&flag1,errmsg),
              errmsg,
              errmsg);
   if (flag1 == _TRUE_){
     pba->rescale_cdm = param1;
+    //printf("DEBUG I read rescale_cdm = %.15e\n",param1);
+  }
+
+  class_call(parser_read_double(pfc,"rescale_free",&param1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  if (flag1 == _TRUE_){
+    pba->rescale_free = param1;
+    //printf("DEBUG I read rescale_free = %.15e\n",param1);
   }
 
   
@@ -5934,11 +5963,12 @@ int input_default_params(struct background *pba,
   pba->phi_prime_ini_scf = 0.;          //     factors of the radiation attractor values
   pba->phistar_scf = 1.;
   pba->beta_scf = 1.;
-  //printf("DEBUG I will now set the default rescale_cdm = 1 !!!\n");
   pba->rescale_cdm = 1.;
+  pba->rescale_free = 1.;
   pba->Amodel = axion;
   pba->fraction_nmc = 1;
   pba->mismatch_cdm = -1;//if -1 then no shooting to improve the final cdm density wrt to the desired one.
+  pba->mismatch_free = -1;//if -1 then no shooting to improve the final lambda density wrt to the desired one. That is the Friedmann equation might be slightly wrong (final H0 slightly wrong)
   /** 9.b.3) Tuning parameter */
   //pba->scf_tuning_index = 0;
   /** 9.b.4) Shooting parameter */

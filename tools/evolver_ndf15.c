@@ -1113,11 +1113,11 @@ int fzero_Newton(int (*func)(double *x,
 
   for (k=1;k<=ntrial;k++) {
     /** Compute F(x): */
-    /**printf("x = [%f, %f], delx = [%e, %e]\n",
-       x_inout[0],x_inout[1],delx[0],delx[1]);*/
+    //printf("DEBUG x = [%f, %f], delx = [%e, %e]\n", x_inout[0],x_inout[1],delx[0],delx[1]);
+    //printf("DEBUG inside fzero_Newton I call the function\n");
     class_call(func(x_inout, x_size, param, F0, error_message),
                error_message, error_message);
-    /**    printf("F0 = [%f, %f]\n",F0[0],F0[1]);*/
+    //printf("Debug F0 = [%.15e, %.15e]\n",F0[0],F0[1]);
     *fevals = *fevals + 1;
     errf=0.0; //fvec and Jacobian matrix in fjac.
     for (i=1; i<=x_size; i++)
@@ -1141,17 +1141,17 @@ int fzero_Newton(int (*func)(double *x,
         delx[i-1] *= -1;
       x_inout[i-1] += delx[i-1];
 
-      /**      printf("x = [%f, %f], delx = [%e, %e]\n",
-               x_inout[0],x_inout[1],delx[0],delx[1]);*/
+      //printf("DEBUG Before second Function x = [%f, %f], delx = [%e, %e]\n",x_inout[0],x_inout[1],delx[0],delx[1]);
       class_call(func(x_inout, x_size, param, Fdel, error_message),
                  error_message, error_message);
-      /**      printf("F = [%f, %f]\n",Fdel[0],Fdel[1]);*/
+      //printf("DEBUG F = [%.15e, %.15e]\n",Fdel[0],Fdel[1]);
       for (j=1; j<=x_size; j++)
         Fjac[j][i] = (Fdel[j-1]-F0[j-1])/delx[i-1];
       x_inout[i-1] -= delx[i-1];
     }
     *fevals = *fevals + x_size;
 
+    //printf("DEBUG end of Jacobian in Newton");
     for (i=1; i<=x_size; i++)
       p[i] = -F0[i-1]; //Right-hand side of linear equations.
     funcreturn = ludcmp(Fjac, x_size, indx, &d, lu_work); //Solve linear equations using LU decomposition.
@@ -1166,10 +1166,12 @@ int fzero_Newton(int (*func)(double *x,
       x_inout[i-1] += p[i];
     }
     if (errx <= tolx){
+      //printf("DEBUG Newton has converged !!!\n");
       has_converged = _TRUE_;
       break;
     }
   }
+  //printf("DEBUG end of Newton x = [%.15e, %.15e]\n",x_inout[0],x_inout[1]);
 
   free(p);
   free(lu_work);
