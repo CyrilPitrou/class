@@ -3416,15 +3416,26 @@ int input_read_parameters_species(struct file_content * pfc,
         pba->Amodel = harmonic;
 	if (input_verbose > 0) 
 	  printf("DEBUG choosing harmonic model for A(phi)\n");
-      }
-      else if ((strstr(string1,"axion") != NULL) || (strstr(string1,"Axion") != NULL)) {
-        pba->Amodel = axion;
-	if (input_verbose > 0) 
-	  printf("DEBUG choosing axion model for A(phi)\n");
-      }
-      else {
-        class_stop(errmsg,"incomprehensible input '%s' for the field 'non_minimal_model'",string1);
-      }
+    }
+    else if ((strstr(string1,"axion") != NULL) || (strstr(string1,"Axion") != NULL)) {
+      pba->Amodel = axion;
+      if (input_verbose > 0) 
+	printf("DEBUG choosing axion model for A(phi)\n");
+    }
+    else if ((strstr(string1,"expquad") != NULL) || (strstr(string1,"Expquad") != NULL)) {
+      pba->Amodel = expquad;
+      if (input_verbose > 0) 
+	printf("DEBUG choosing exp(quad) model for A(phi)\n");
+    }
+    else if ((strstr(string1,"power4") != NULL) || (strstr(string1,"Power4") != NULL)) {
+      pba->Amodel = power4;
+      if (input_verbose > 0) 
+	printf("DEBUG choosing power4 model for A(phi)\n");
+    }
+    else {
+      class_stop(errmsg,"incomprehensible input '%s' for the field 'non_minimal_model'",string1);
+    }
+    printf("DEBUG the model number is %d \n",pba->Amodel);
   }
   
   

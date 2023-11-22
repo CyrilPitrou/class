@@ -18,7 +18,7 @@ enum spatial_curvature {flat,open,closed};
 
 enum equation_of_state {CLP,EDE};
 
-enum non_minimal_model {harmonic,axion};
+enum non_minimal_model {harmonic,axion,expquad,power4};
 
 /** list of possible parametrizations of the varying fundamental constants */
 

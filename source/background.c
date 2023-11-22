@@ -3073,13 +3073,18 @@ double ddV_scf(
 double A_scf(
              struct background *pba,
              double phi) {
+  ErrorMsg errmsg;
   switch (pba->Amodel) {
   case harmonic:
-    return  1 + pba->beta_scf /2. *pow( (phi/_SQRT2_/pba->phistar_scf), 2) ;
+    return  1 + pba->beta_scf/4.*pow(phi,2) ;
   case axion:
     return  1 + pba->beta_scf * (1- cos(phi/_SQRT2_/pba->phistar_scf) );
+  case expquad:
+    return  exp(pba->beta_scf/4.*pow(phi,2) );
+  case power4:
+    return 1 + pba->beta_scf /16. *pow(phi,4);
   default:
-    printf("DEBUG the A model was wrongly chosen and the A function does not evaluate \n");
+    class_stop(errmsg,"incomprehensible model number %d",pba->Amodel);
   }
 }
 
@@ -3087,15 +3092,22 @@ double dA_scf(
               struct background *pba,
               double phi) {
   double dA;
+  ErrorMsg errmsg;
   switch (pba->Amodel) {
   case harmonic:
-    dA = pba->beta_scf * (phi/_SQRT2_/pba->phistar_scf) / _SQRT2_ / pba->phistar_scf  ;
+    dA = pba->beta_scf/2.*phi ;
     break;
   case axion:
-    dA = pba->beta_scf * sin(phi/_SQRT2_/pba->phistar_scf) /pba->phistar_scf / _SQRT2_;
+    dA = pba->beta_scf * sin(phi/_SQRT2_/pba->phistar_scf) /(pba->phistar_scf*_SQRT2_);
+    break;
+  case expquad:
+    dA = pba->beta_scf/2 * phi* exp(pba->beta_scf/4.*pow(phi,2));
+    break;
+  case power4:
+    dA =  pba->beta_scf /4. *pow(phi,3);
     break;
   default:
-    printf("DEBUG the A model was wrongly chosen and the A function does not evaluate \n");
+    class_stop(errmsg,"incomprehensible model number %d",pba->Amodel);
   }
   return dA;
 }
@@ -3104,15 +3116,22 @@ double ddA_scf(
               struct background *pba,
               double phi) {
   double ddA;
+  ErrorMsg errmsg;
   switch (pba->Amodel) {
   case harmonic:
-    ddA = pba->beta_scf / pow(_SQRT2_*pba->phistar_scf,2);
+    ddA = pba->beta_scf;
     break;
   case axion:
     ddA = pba->beta_scf * cos(phi/_SQRT2_/pba->phistar_scf) / pow(pba->phistar_scf*_SQRT2_,2);
     break;
+  case expquad:
+    ddA = (pow(pba->beta_scf/2*phi,2) + pba->beta_scf/2)* exp(pba->beta_scf/4.*pow(phi,2));
+    break;
+  case power4:
+    ddA = pba->beta_scf *3./4. *pow(phi,2);
+    break;
   default:
-    printf("DEBUG the A model was wrongly chosen and the A function does not evaluate \n");
+    class_stop(errmsg,"incomprehensible model number %d",pba->Amodel);
   }
   return ddA;
 }
