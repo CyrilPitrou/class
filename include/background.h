@@ -128,6 +128,7 @@ struct background
   double phi_ini_scf;      /**< \f$ \phi(t_0) \f$: scalar field initial value */
   double phi_prime_ini_scf;/**< \f$ d\phi(t_0)/d\tau \f$: scalar field initial derivative wrt conformal time */
   double fraction_nmc;/** Fraction of CDM which is non-minimally coupled with the A function */
+  double fraction_nmc_lambda;/** Fraction of Lambda which is non-minimally coupled with the A function */
   //int scf_parameters_size; /**< size of scf_parameters */
 
   //PITROU_UZAN
@@ -595,6 +596,16 @@ extern "C" {
 
   //PITROU_UZAN. Non minimal coupling to CDM.
   double A_scf(
+               struct background *pba,
+               double phi
+               );
+
+  double dA_scf(
+               struct background *pba,
+               double phi
+               );
+
+  double ddA_scf(
                struct background *pba,
                double phi
                );

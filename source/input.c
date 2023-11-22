@@ -557,7 +557,8 @@ int input_shooting(struct file_content * pfc,
 
   struct fzerofun_workspace fzw;
 
-  printf("DEBUG start input_shooting \n");
+  if (input_verbose > 0)
+    printf("DEBUG start input_shooting \n");
   
   *has_shooting=_FALSE_;
 
@@ -587,8 +588,9 @@ int input_shooting(struct file_content * pfc,
 
     }
   }
-
-  printf("DEBUG number of shooting parameters are %d\n",unknown_parameters_size);
+  
+  if (input_verbose > 0)  
+    printf("DEBUG number of shooting parameters are %d\n",unknown_parameters_size);
   
   /** In the case of unknown parameters, start shooting... */
   if (unknown_parameters_size > 0) {
@@ -3379,6 +3381,12 @@ int input_read_parameters_species(struct file_content * pfc,
     pba->fraction_nmc = param1;
   }
 
+  class_call(parser_read_double(pfc,"fraction_nmc_lambda",&param1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  if (flag1 == _TRUE_){
+    pba->fraction_nmc_lambda = param1;
+  }
 
   //Input of rescale parameters (needed for the shooting procedure where this is the only case where it should be read)
   class_call(parser_read_double(pfc,"rescale_cdm",&param1,&flag1,errmsg),
@@ -3406,11 +3414,13 @@ int input_read_parameters_species(struct file_content * pfc,
   if (flag1 == _TRUE_) {
     if ((strstr(string1,"harmonic") != NULL) || (strstr(string1,"Harmonic") != NULL)) {
         pba->Amodel = harmonic;
-	printf("DEBUG choosing harmonic model for A(phi)\n");
+	if (input_verbose > 0) 
+	  printf("DEBUG choosing harmonic model for A(phi)\n");
       }
       else if ((strstr(string1,"axion") != NULL) || (strstr(string1,"Axion") != NULL)) {
         pba->Amodel = axion;
-	printf("DEBUG choosing axion model for A(phi)\n");
+	if (input_verbose > 0) 
+	  printf("DEBUG choosing axion model for A(phi)\n");
       }
       else {
         class_stop(errmsg,"incomprehensible input '%s' for the field 'non_minimal_model'",string1);
@@ -5966,7 +5976,8 @@ int input_default_params(struct background *pba,
   pba->rescale_cdm = 1.;
   pba->rescale_free = 1.;
   pba->Amodel = axion;
-  pba->fraction_nmc = 1;
+  pba->fraction_nmc = 1.;
+  pba->fraction_nmc_lambda = 0.;
   pba->mismatch_cdm = -1;//if -1 then no shooting to improve the final cdm density wrt to the desired one.
   pba->mismatch_free = -1;//if -1 then no shooting to improve the final lambda density wrt to the desired one. That is the Friedmann equation might be slightly wrong (final H0 slightly wrong)
   /** 9.b.3) Tuning parameter */

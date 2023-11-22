@@ -1021,7 +1021,8 @@ int background_indices(
   //PITROU_UZAN
   if (pba->phi_ini_scf != 0.) { 
     pba->has_scf = _TRUE_;
-    printf("DEBUG we do have a scf\n");
+    if (pba->background_verbose > 0)
+      printf("DEBUG we do have a scf\n");
   }
   
   if (pba->Omega0_lambda != 0.)
@@ -3040,19 +3041,31 @@ double ddV_scf(
 double V_scf(
              struct background *pba,
              double phi) {
-  return  0;
+  double kappa_rho_lambda, A;
+  kappa_rho_lambda = 3. * pba->rescale_free * pba->Omega0_lambda * pow(pba->H0,2);
+  A = A_scf(pba,phi);
+  return  kappa_rho_lambda*pba->fraction_nmc_lambda*(pow(A,4) - 1.);
 }
 
 double dV_scf(
               struct background *pba,
               double phi) {
-  return 0;
+  double kappa_rho_lambda, A, dA;
+  kappa_rho_lambda = 3. * pba->rescale_free * pba->Omega0_lambda * pow(pba->H0,2);
+  A = A_scf(pba,phi);
+  dA = dA_scf(pba,phi);
+  return  kappa_rho_lambda*pba->fraction_nmc_lambda*4.*pow(A,3)*dA;
 }
 
 double ddV_scf(
                struct background *pba,
                double phi) {
-  return 0;
+  double kappa_rho_lambda, A, dA, ddA;
+  kappa_rho_lambda = 3. * pba->rescale_free * pba->Omega0_lambda * pow(pba->H0,2);
+  A = A_scf(pba,phi);
+  dA = dA_scf(pba,phi);
+  ddA = ddA_scf(pba,phi);
+  return kappa_rho_lambda*pba->fraction_nmc_lambda*(12.*pow(A,2)*dA*dA + 4.*pow(A,3)*ddA) ;
 }
 
 
@@ -3070,11 +3083,10 @@ double A_scf(
   }
 }
 
-double dlnA_scf(
+double dA_scf(
               struct background *pba,
               double phi) {
-  double A,dA;
-  A = A_scf(pba,phi);
+  double dA;
   switch (pba->Amodel) {
   case harmonic:
     dA = pba->beta_scf * (phi/_SQRT2_/pba->phistar_scf) / _SQRT2_ / pba->phistar_scf  ;
@@ -3082,16 +3094,16 @@ double dlnA_scf(
   case axion:
     dA = pba->beta_scf * sin(phi/_SQRT2_/pba->phistar_scf) /pba->phistar_scf / _SQRT2_;
     break;
+  default:
+    printf("DEBUG the A model was wrongly chosen and the A function does not evaluate \n");
   }
-  return dA/A;
+  return dA;
 }
 
-double ddlnA_scf(
+double ddA_scf(
               struct background *pba,
               double phi) {
-  double A,ddA,dlnA;
-  A = A_scf(pba,phi);
-  dlnA = dlnA_scf(pba,phi);
+  double ddA;
   switch (pba->Amodel) {
   case harmonic:
     ddA = pba->beta_scf / pow(_SQRT2_*pba->phistar_scf,2);
@@ -3099,6 +3111,28 @@ double ddlnA_scf(
   case axion:
     ddA = pba->beta_scf * cos(phi/_SQRT2_/pba->phistar_scf) / pow(pba->phistar_scf*_SQRT2_,2);
     break;
+  default:
+    printf("DEBUG the A model was wrongly chosen and the A function does not evaluate \n");
   }
-  return ddA/A_scf(pba,phi) - pow(dlnA,2) ;
+  return ddA;
+}
+
+
+double dlnA_scf(
+              struct background *pba,
+              double phi) {
+  double A,dA,ddA;
+  A = A_scf(pba,phi);
+  dA = dA_scf(pba,phi);
+  return dA/A;
+}
+
+double ddlnA_scf(
+              struct background *pba,
+              double phi) {
+  double A,dA,ddA;
+  A = A_scf(pba,phi);
+  dA = dA_scf(pba,phi);
+  ddA = ddA_scf(pba,phi);
+  return ddA/A - pow(dA/A,2) ;
 }
