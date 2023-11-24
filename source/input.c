@@ -3435,7 +3435,7 @@ int input_read_parameters_species(struct file_content * pfc,
     else {
       class_stop(errmsg,"incomprehensible input '%s' for the field 'non_minimal_model'",string1);
     }
-    printf("DEBUG the model number is %d \n",pba->Amodel);
+    //printf("DEBUG the model number is %d \n",pba->Amodel);
   }
   
   
