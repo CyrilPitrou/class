@@ -1232,8 +1232,8 @@ int input_get_guess(double *xguess,
       ba.H0 = ba.h *  1.e5 / _c_;
       break;
     case mismatch_cdm:
-      xguess[index_guess] = A_scf(&ba,ba.phi_ini_scf) /A_scf(&ba,0) * (1. + pfzw->target_value[index_guess]/ba.fraction_nmc);
-      dxdy[index_guess] = A_scf(&ba,ba.phi_ini_scf) /A_scf(&ba,0) /ba.fraction_nmc ;
+      xguess[index_guess] = A_scf(&ba,ba.phi_ini_scf) /1. * (1. + pfzw->target_value[index_guess]/ba.fraction_nmc);//1 is expected to be the final value of A.
+      dxdy[index_guess] = A_scf(&ba,ba.phi_ini_scf) /1. /ba.fraction_nmc ;//1. is expected to be the final value of A
       ba.rescale_cdm = xguess[index_guess];
       //printf("DEBUG guess for rescale_cdm is %e\n",xguess[index_guess]);
       break;
@@ -3374,6 +3374,13 @@ int input_read_parameters_species(struct file_content * pfc,
     pba->beta_scf = param1;
   }
 
+  class_call(parser_read_double(pfc,"gamma_scf",&param1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  if (flag1 == _TRUE_){
+    pba->gamma_scf = param1;
+  }
+  
   class_call(parser_read_double(pfc,"fraction_nmc",&param1,&flag1,errmsg),
              errmsg,
              errmsg);
@@ -3427,10 +3434,20 @@ int input_read_parameters_species(struct file_content * pfc,
       if (input_verbose > 0) 
 	printf("DEBUG choosing exp(quad) model for A(phi)\n");
     }
+    else if ((strstr(string1,"tanhstep") != NULL) || (strstr(string1,"Tanhstep") != NULL)) {
+      pba->Amodel = tanhstep;
+      if (input_verbose > 0) 
+	printf("DEBUG choosing Tanh() model for A(phi)\n");
+    }
     else if ((strstr(string1,"power4") != NULL) || (strstr(string1,"Power4") != NULL)) {
       pba->Amodel = power4;
       if (input_verbose > 0) 
 	printf("DEBUG choosing power4 model for A(phi)\n");
+    }
+    else if ((strstr(string1,"power24") != NULL) || (strstr(string1,"Power24") != NULL)) {
+      pba->Amodel = power24;
+      if (input_verbose > 0) 
+	printf("DEBUG choosing power24 model for A(phi)\n");
     }
     else {
       class_stop(errmsg,"incomprehensible input '%s' for the field 'non_minimal_model'",string1);
@@ -5984,6 +6001,7 @@ int input_default_params(struct background *pba,
   pba->phi_prime_ini_scf = 0.;          //     factors of the radiation attractor values
   pba->phistar_scf = 1.;
   pba->beta_scf = 1.;
+  pba->gamma_scf = 0.;
   pba->rescale_cdm = 1.;
   pba->rescale_free = 1.;
   pba->Amodel = axion;

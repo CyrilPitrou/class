@@ -18,7 +18,7 @@ enum spatial_curvature {flat,open,closed};
 
 enum equation_of_state {CLP,EDE};
 
-enum non_minimal_model {harmonic,axion,expquad,power4};
+enum non_minimal_model {harmonic,axion,expquad,tanhstep,power4,power24};
 
 /** list of possible parametrizations of the varying fundamental constants */
 
@@ -121,6 +121,7 @@ struct background
   //PITROU_UZAN
   enum non_minimal_model Amodel;//Model type for A function
   double beta_scf; /** Parameter in the non-minimal coupling function A(phi) */
+  double gamma_scf; /** Second parameter in the non-minimal coupling function A(phi) */
   double phistar_scf; /** Second parameter in the non-minimal couplign potential */
   //double * scf_parameters; /**< list of parameters describing the scalar field potential */
   //short attractor_ic_scf;  /**< whether the scalar field has attractor initial conditions */

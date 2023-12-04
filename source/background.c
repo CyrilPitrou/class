@@ -2295,7 +2295,7 @@ int background_initial_conditions(
     //PITROU_UZAN a good guess assuming final A is 1
     //If no shooting was used then we put the best guess we can have
     if (pba->rescale_cdm == 1) {
-      pba->rescale_cdm = A_scf(pba, pba->phi_ini_scf)/A_scf(pba,0.);
+      pba->rescale_cdm = A_scf(pba, pba->phi_ini_scf)/1.;//1. is expected to be the final value of A.
     }
     //printf("DEBUG pba->rescale_cdm = %.20e \n",pba->rescale_cdm);
     //printf("DEBUG pba->rescale_free = %.20e \n",pba->rescale_free);
@@ -3081,8 +3081,12 @@ double A_scf(
     return  1 + pba->beta_scf * (1- cos(phi/_SQRT2_/pba->phistar_scf) );
   case expquad:
     return  exp(pba->beta_scf/4.*pow(phi,2) );
+  case tanhstep:
+    return 1 + pba->beta_scf/2.*(tanh(phi/_SQRT2_/pba->phistar_scf) +1.);
   case power4:
     return 1 + pba->beta_scf /16. *pow(phi,4);
+  case power24:
+    return 1 + pba->beta_scf/4.*pow(phi,2) + pba->gamma_scf/96.*pow(phi,4) ;
   default:
     class_stop(errmsg,"incomprehensible model number %d",pba->Amodel);
   }
@@ -3091,7 +3095,7 @@ double A_scf(
 double dA_scf(
               struct background *pba,
               double phi) {
-  double dA;
+  double dA, tanhloc;
   ErrorMsg errmsg;
   switch (pba->Amodel) {
   case harmonic:
@@ -3103,8 +3107,15 @@ double dA_scf(
   case expquad:
     dA = pba->beta_scf/2 * phi* exp(pba->beta_scf/4.*pow(phi,2));
     break;
+  case tanhstep:
+    tanhloc = tanh(phi/_SQRT2_/pba->phistar_scf);
+    dA = pba->beta_scf/2.*(1 - pow(tanhloc,2)) /(_SQRT2_*pba->phistar_scf);
+    break;
   case power4:
-    dA =  pba->beta_scf /4. *pow(phi,3);
+    dA = pba->beta_scf /4. *pow(phi,3);
+    break;
+  case power24:
+    dA = pba->beta_scf/2.*phi + pba->gamma_scf/24.*pow(phi,3) ;
     break;
   default:
     class_stop(errmsg,"incomprehensible model number %d",pba->Amodel);
@@ -3115,7 +3126,7 @@ double dA_scf(
 double ddA_scf(
               struct background *pba,
               double phi) {
-  double ddA;
+  double ddA, tanhloc;
   ErrorMsg errmsg;
   switch (pba->Amodel) {
   case harmonic:
@@ -3127,8 +3138,15 @@ double ddA_scf(
   case expquad:
     ddA = (pow(pba->beta_scf/2*phi,2) + pba->beta_scf/2)* exp(pba->beta_scf/4.*pow(phi,2));
     break;
+  case tanhstep:
+    tanhloc = tanh(phi/_SQRT2_/pba->phistar_scf);
+    ddA = pba->beta_scf/2.*( -2.*tanhloc*(1- pow(tanhloc,2)) ) / pow(_SQRT2_*pba->phistar_scf,2);
+    break;
   case power4:
     ddA = pba->beta_scf *3./4. *pow(phi,2);
+    break;
+  case power24:
+    ddA = pba->beta_scf + pba->gamma_scf/8.*pow(phi,2) ;
     break;
   default:
     class_stop(errmsg,"incomprehensible model number %d",pba->Amodel);
