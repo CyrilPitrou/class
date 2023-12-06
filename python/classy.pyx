@@ -1427,6 +1427,10 @@ cdef class Class:
         self.compute(["thermodynamics"])
         return self.th.rs_d
 
+    def rs_rec(self):
+        self.compute(["thermodynamics"])
+        return self.th.rs_rec
+
     def z_reio(self):
         self.compute(["thermodynamics"])
         return self.th.z_reio
