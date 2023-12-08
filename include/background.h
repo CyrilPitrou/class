@@ -123,6 +123,7 @@ struct background
   double beta_scf; /** Parameter in the non-minimal coupling function A(phi) */
   double gamma_scf; /** Second parameter in the non-minimal coupling function A(phi) */
   double phistar_scf; /** Second parameter in the non-minimal couplign potential */
+
   //double * scf_parameters; /**< list of parameters describing the scalar field potential */
   //short attractor_ic_scf;  /**< whether the scalar field has attractor initial conditions */
   //int scf_tuning_index;    /**< index in scf_parameters used for tuning */
@@ -130,6 +131,7 @@ struct background
   double phi_prime_ini_scf;/**< \f$ d\phi(t_0)/d\tau \f$: scalar field initial derivative wrt conformal time */
   double fraction_nmc;/** Fraction of CDM which is non-minimally coupled with the A function */
   double fraction_nmc_lambda;/** Fraction of Lambda which is non-minimally coupled with the A function */
+  double strength_scf_perturbations; /** parameters to remove perturbations equation (to check their effect. SHould be 1 always) */
   //int scf_parameters_size; /**< size of scf_parameters */
 
   //PITROU_UZAN

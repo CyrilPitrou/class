@@ -3395,6 +3395,13 @@ int input_read_parameters_species(struct file_content * pfc,
     pba->fraction_nmc_lambda = param1;
   }
 
+  class_call(parser_read_double(pfc,"strength_scf_perturbations",&param1,&flag1,errmsg),
+             errmsg,
+             errmsg);
+  if (flag1 == _TRUE_){
+    pba->strength_scf_perturbations = param1;
+  }
+  
   //Input of rescale parameters (needed for the shooting procedure where this is the only case where it should be read)
   class_call(parser_read_double(pfc,"rescale_cdm",&param1,&flag1,errmsg),
              errmsg,
@@ -6007,6 +6014,7 @@ int input_default_params(struct background *pba,
   pba->Amodel = axion;
   pba->fraction_nmc = 1.;
   pba->fraction_nmc_lambda = 0.;
+  pba->strength_scf_perturbations = 1.;
   pba->mismatch_cdm = -1;//if -1 then no shooting to improve the final cdm density wrt to the desired one.
   pba->mismatch_free = -1;//if -1 then no shooting to improve the final lambda density wrt to the desired one. That is the Friedmann equation might be slightly wrong (final H0 slightly wrong)
   /** 9.b.3) Tuning parameter */
