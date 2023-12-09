@@ -3130,7 +3130,7 @@ double ddA_scf(
   ErrorMsg errmsg;
   switch (pba->Amodel) {
   case harmonic:
-    ddA = pba->beta_scf;
+    ddA = pba->beta_scf/2;
     break;
   case axion:
     ddA = pba->beta_scf * cos(phi/_SQRT2_/pba->phistar_scf) / pow(pba->phistar_scf*_SQRT2_,2);
@@ -3146,7 +3146,7 @@ double ddA_scf(
     ddA = pba->beta_scf*3/4. *pow(phi,2);
     break;
   case power24:
-    ddA = pba->beta_scf + pba->gamma_scf*3/4.*pow(phi,2) ;
+    ddA = pba->beta_scf/2 + pba->gamma_scf*3/4.*pow(phi,2) ;
     break;
   default:
     class_stop(errmsg,"incomprehensible model number %d",pba->Amodel);
