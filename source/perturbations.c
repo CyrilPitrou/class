@@ -8498,8 +8498,8 @@ int perturbations_print_variables(double tau,
       rho_plus_p_theta_scf =  1./3.*
 	k*k/a2*ppw->pvecback[pba->index_bg_phi_prime_scf]*y[ppw->pv->index_pt_phi_scf];
       
-      delta_scf = pba->strength_scf_perturbations*delta_rho_scf/pvecback[pba->index_bg_rho_scf];
-      theta_scf = pba->strength_scf_perturbations*(rho_plus_p_theta_scf/(pvecback[pba->index_bg_rho_scf]+pvecback[pba->index_bg_p_scf]));
+      delta_scf = delta_rho_scf/pvecback[pba->index_bg_rho_scf];
+      theta_scf = rho_plus_p_theta_scf/(pvecback[pba->index_bg_rho_scf]+pvecback[pba->index_bg_p_scf]);
       /*}
       else {
 	delta_rho_scf = 0.;
@@ -8560,8 +8560,8 @@ int perturbations_print_variables(double tau,
 
       if (pba->has_scf == _TRUE_) {
         //delta_scf += alpha*(-3.0*H*(1.0+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf]));//Seems strange formula. The factor a is missing in front of H.
-	delta_scf += pba->strength_scf_perturbations*alpha*(-3.0*H*a*(1.0+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf]));//Corrected version by PITROU
-	theta_scf += pba->strength_scf_perturbations*k*k*alpha;
+	delta_scf += alpha*(-3.0*H*a*(1.0+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf]));//Corrected version by PITROU
+	theta_scf += k*k*alpha;
       }
 
     }
