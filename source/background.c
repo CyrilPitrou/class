@@ -3069,7 +3069,8 @@ double ddV_scf(
 }
 
 
-//PITROU_UZAN Beware that Phi in class is related to phi in notes by Phi_CLASS = sqrt(2) Phi_notes
+//PITROU_UZAN
+//Beware that the scalarfield \varhi in class is related to \varphi in Pitrou&Uzan2023 articles by \varphi_CLASS = \sqrt(2) \varphi_{papers}
 double A_scf(
              struct background *pba,
              double phi) {

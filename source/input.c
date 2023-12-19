@@ -3263,10 +3263,12 @@ int input_read_parameters_species(struct file_content * pfc,
   Omega_tot += pba->Omega0_ncdm_tot;
   /* Step 1 */
   if (flag1 == _TRUE_){
+    //printf("DEBUG I have read a Omega_lambda and I set it\n");
     pba->Omega0_lambda = param1;
     Omega_tot += pba->Omega0_lambda;
   }
   if (flag2 == _TRUE_){
+    //printf("DEBUG I have read a Omega_fld and I set it\n");
     pba->Omega0_fld = param2;
     Omega_tot += pba->Omega0_fld;
   }
