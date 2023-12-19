@@ -3079,7 +3079,7 @@ double A_scf(
   case expquad:
     return  exp(pba->beta_scf/4.*pow(phi,2) );
   case power24:
-    return 1 + pba->beta_scf/4.*pow(phi,2) + pba->gamma_scf/16.*pow(phi,4) ;
+    return 1 + pba->beta_scf/4.*pow(phi,2) + pba->lambda_scf/16.*pow(phi,4) ;
   default:
     class_stop(errmsg,"incomprehensible model number %d",pba->Amodel);
   }
@@ -3095,7 +3095,7 @@ double dA_scf(
     dA = pba->beta_scf/2 * phi* exp(pba->beta_scf/4.*pow(phi,2));
     break;
   case power24:
-    dA = pba->beta_scf/2.*phi + pba->gamma_scf/4.*pow(phi,3) ;
+    dA = pba->beta_scf/2.*phi + pba->lambda_scf/4.*pow(phi,3) ;
     break;
   default:
     class_stop(errmsg,"incomprehensible model number %d",pba->Amodel);
@@ -3113,7 +3113,7 @@ double ddA_scf(
     ddA = (pow(pba->beta_scf/2*phi,2) + pba->beta_scf/2)* exp(pba->beta_scf/4.*pow(phi,2));
     break;
   case power24:
-    ddA = pba->beta_scf/2 + pba->gamma_scf*3/4.*pow(phi,2) ;
+    ddA = pba->beta_scf/2 + pba->lambda_scf*3/4.*pow(phi,2) ;
     break;
   default:
     class_stop(errmsg,"incomprehensible model number %d",pba->Amodel);
