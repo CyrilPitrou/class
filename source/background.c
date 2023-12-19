@@ -3069,23 +3069,15 @@ double ddV_scf(
 }
 
 
-//PITROU_UZAN
+//See PITROU&UZAN2023 for definitions of these coupling constants
 //Beware that the scalarfield \varhi in class is related to \varphi in Pitrou&Uzan2023 articles by \varphi_CLASS = \sqrt(2) \varphi_{papers}
 double A_scf(
              struct background *pba,
              double phi) {
   ErrorMsg errmsg;
   switch (pba->Amodel) {
-  case harmonic:
-    return  1 + pba->beta_scf/4.*pow(phi,2) ;
-  case axion:
-    return  1 + pba->beta_scf * (1- cos(phi/_SQRT2_/pba->phistar_scf) );
   case expquad:
     return  exp(pba->beta_scf/4.*pow(phi,2) );
-  case tanhstep:
-    return 1 + pba->beta_scf/2.*(tanh(phi/_SQRT2_/pba->phistar_scf) +1.);
-  case power4:
-    return 1 + pba->beta_scf /16. *pow(phi,4);
   case power24:
     return 1 + pba->beta_scf/4.*pow(phi,2) + pba->gamma_scf/16.*pow(phi,4) ;
   default:
@@ -3099,21 +3091,8 @@ double dA_scf(
   double dA, tanhloc;
   ErrorMsg errmsg;
   switch (pba->Amodel) {
-  case harmonic:
-    dA = pba->beta_scf/2.*phi ;
-    break;
-  case axion:
-    dA = pba->beta_scf * sin(phi/_SQRT2_/pba->phistar_scf) /(pba->phistar_scf*_SQRT2_);
-    break;
   case expquad:
     dA = pba->beta_scf/2 * phi* exp(pba->beta_scf/4.*pow(phi,2));
-    break;
-  case tanhstep:
-    tanhloc = tanh(phi/_SQRT2_/pba->phistar_scf);
-    dA = pba->beta_scf/2.*(1 - pow(tanhloc,2)) /(_SQRT2_*pba->phistar_scf);
-    break;
-  case power4:
-    dA = pba->beta_scf /4. *pow(phi,3);
     break;
   case power24:
     dA = pba->beta_scf/2.*phi + pba->gamma_scf/4.*pow(phi,3) ;
@@ -3130,21 +3109,8 @@ double ddA_scf(
   double ddA, tanhloc;
   ErrorMsg errmsg;
   switch (pba->Amodel) {
-  case harmonic:
-    ddA = pba->beta_scf/2;
-    break;
-  case axion:
-    ddA = pba->beta_scf * cos(phi/_SQRT2_/pba->phistar_scf) / pow(pba->phistar_scf*_SQRT2_,2);
-    break;
   case expquad:
     ddA = (pow(pba->beta_scf/2*phi,2) + pba->beta_scf/2)* exp(pba->beta_scf/4.*pow(phi,2));
-    break;
-  case tanhstep:
-    tanhloc = tanh(phi/_SQRT2_/pba->phistar_scf);
-    ddA = pba->beta_scf/2.*( -2.*tanhloc*(1- pow(tanhloc,2)) ) / pow(_SQRT2_*pba->phistar_scf,2);
-    break;
-  case power4:
-    ddA = pba->beta_scf*3/4. *pow(phi,2);
     break;
   case power24:
     ddA = pba->beta_scf/2 + pba->gamma_scf*3/4.*pow(phi,2) ;

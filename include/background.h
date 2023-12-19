@@ -18,7 +18,7 @@ enum spatial_curvature {flat,open,closed};
 
 enum equation_of_state {CLP,EDE};
 
-enum non_minimal_model {harmonic,axion,expquad,tanhstep,power4,power24};
+enum non_minimal_model {power24,expquad};
 
 /** list of possible parametrizations of the varying fundamental constants */
 
@@ -120,18 +120,17 @@ struct background
 
   //PITROU_UZAN
   enum non_minimal_model Amodel;//Model type for A function
-  double beta_scf; /** Parameter in the non-minimal coupling function A(phi) */
-  double gamma_scf; /** Second parameter in the non-minimal coupling function A(phi) */
-  double phistar_scf; /** Second parameter in the non-minimal couplign potential */
+  double beta_scf; /** Parameter in the non-minimal coupling function A(phi) = 1 + beta/2*phi^2 + lambda/4*phi^4 */
+  double lambda_scf; /** Parameter in the non-minimal coupling function A(phi) = 1 + beta/2*phi^2 + lambda/4*phi^4 */
 
   //double * scf_parameters; /**< list of parameters describing the scalar field potential */
   //short attractor_ic_scf;  /**< whether the scalar field has attractor initial conditions */
   //int scf_tuning_index;    /**< index in scf_parameters used for tuning */
-  double phi_ini_scf;      /**< \f$ \phi(t_0) \f$: scalar field initial value */
-  double phi_prime_ini_scf;/**< \f$ d\phi(t_0)/d\tau \f$: scalar field initial derivative wrt conformal time */
-  double fraction_nmc;/** Fraction of CDM which is non-minimally coupled with the A function */
-  double fraction_nmc_lambda;/** Fraction of Lambda which is non-minimally coupled with the A function */
-  double strength_scf_perturbations; /** parameters to remove perturbations equation (to check their effect. SHould be 1 always) */
+  double phi_ini_scf;      /**< \f$ \phi(t_0) \f$: scalar field initial value. Note that \phi in CLASS is sqrt(2) times \phi in the paper Pitrou&Uzan2023. */
+  double phi_prime_ini_scf;/**< \f$ d\phi(t_0)/d\tau \f$: scalar field initial derivative wrt conformal time. Should be one if we want to start on the slow-roll attractor (or we should put the value from slow-roll) */
+  double fraction_nmc;/** Fraction of CDM which is non-minimally coupled with the A function. Never tested. Should be one. */
+  double fraction_nmc_lambda;/** Fraction of Lambda which is non-minimally coupled with the A function. Never tested. Should be one. */
+  double strength_scf_perturbations; /** parameters to remove perturbations equation (to check their effect. Should be 1 always) */
   //int scf_parameters_size; /**< size of scf_parameters */
 
   //PITROU_UZAN

@@ -3362,13 +3362,6 @@ int input_read_parameters_species(struct file_content * pfc,
     pba->phi_ini_scf = param1;
   }
 
-  class_call(parser_read_double(pfc,"phistar_scf",&param1,&flag1,errmsg),
-             errmsg,
-             errmsg);
-  if (flag1 == _TRUE_){
-    pba->phistar_scf = param1;
-  }
-
   class_call(parser_read_double(pfc,"beta_scf",&param1,&flag1,errmsg),
              errmsg,
              errmsg);
@@ -3376,11 +3369,11 @@ int input_read_parameters_species(struct file_content * pfc,
     pba->beta_scf = param1;
   }
 
-  class_call(parser_read_double(pfc,"gamma_scf",&param1,&flag1,errmsg),
+  class_call(parser_read_double(pfc,"lambda_scf",&param1,&flag1,errmsg),
              errmsg,
              errmsg);
   if (flag1 == _TRUE_){
-    pba->gamma_scf = param1;
+    pba->lambda_scf = param1;
   }
   
   class_call(parser_read_double(pfc,"fraction_nmc",&param1,&flag1,errmsg),
@@ -3428,35 +3421,15 @@ int input_read_parameters_species(struct file_content * pfc,
 	     errmsg);
   /* Complete set of parameters */
   if (flag1 == _TRUE_) {
-    if ((strstr(string1,"harmonic") != NULL) || (strstr(string1,"Harmonic") != NULL)) {
-        pba->Amodel = harmonic;
+    if ((strstr(string1,"power24") != NULL) || (strstr(string1,"power24") != NULL)) {
+        pba->Amodel = power24;
 	if (input_verbose > 0) 
-	  printf("DEBUG choosing harmonic model for A(phi)\n");
-    }
-    else if ((strstr(string1,"axion") != NULL) || (strstr(string1,"Axion") != NULL)) {
-      pba->Amodel = axion;
-      if (input_verbose > 0) 
-	printf("DEBUG choosing axion model for A(phi)\n");
+	  printf("DEBUG choosing A = 1 + beta/2*phi^2 + lambda/4*phi^4  model for A(phi)\n");
     }
     else if ((strstr(string1,"expquad") != NULL) || (strstr(string1,"Expquad") != NULL)) {
       pba->Amodel = expquad;
       if (input_verbose > 0) 
 	printf("DEBUG choosing exp(quad) model for A(phi)\n");
-    }
-    else if ((strstr(string1,"tanhstep") != NULL) || (strstr(string1,"Tanhstep") != NULL)) {
-      pba->Amodel = tanhstep;
-      if (input_verbose > 0) 
-	printf("DEBUG choosing Tanh() model for A(phi)\n");
-    }
-    else if ((strstr(string1,"power4") != NULL) || (strstr(string1,"Power4") != NULL)) {
-      pba->Amodel = power4;
-      if (input_verbose > 0) 
-	printf("DEBUG choosing power4 model for A(phi)\n");
-    }
-    else if ((strstr(string1,"power24") != NULL) || (strstr(string1,"Power24") != NULL)) {
-      pba->Amodel = power24;
-      if (input_verbose > 0) 
-	printf("DEBUG choosing power24 model for A(phi)\n");
     }
     else {
       class_stop(errmsg,"incomprehensible input '%s' for the field 'non_minimal_model'",string1);
@@ -6008,12 +5981,11 @@ int input_default_params(struct background *pba,
   pba->has_scf = _FALSE_;
   pba->phi_ini_scf = 0.;                // MZ: initial conditions are as multiplicative
   pba->phi_prime_ini_scf = 0.;          //     factors of the radiation attractor values
-  pba->phistar_scf = 1.;
   pba->beta_scf = 1.;
-  pba->gamma_scf = 0.;
+  pba->lambda_scf = 0.;
   pba->rescale_cdm = 1.;
   pba->rescale_free = 1.;
-  pba->Amodel = axion;
+  pba->Amodel = power24;
   pba->fraction_nmc = 1.;
   pba->fraction_nmc_lambda = 0.;
   pba->strength_scf_perturbations = 1.;
