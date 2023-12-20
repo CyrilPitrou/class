@@ -527,15 +527,15 @@ int input_shooting(struct file_content * pfc,
 				       "mismatch_free",
                                        "Omega_dcdmdr",
                                        "omega_dcdmdr",
-                                       //"Omega_scf",//PITROU_UZAN
+                                       //"Omega_scf",//PITROU&UZAN 2023 model. The shooting is now on rescale_free (much multiplies Omega_lambda+Omega_fld) to satisfy mismatch_free=0.
                                        "Omega_ini_dcdm",
                                        "omega_ini_dcdm"};
 
   /* array of corresponding parameters that must be adjusted in order to meet the target (= unknown parameters) */
   char * const unknown_namestrings[] = {"h",                        /* unknown param for target '100*theta_s' */
                                         "h",                        /* unknown param for target 'theta_s_100' */
-					"rescale_cdm",   /*Rescaling parameter to make sure final CDM is the desired one */
-					"rescale_free", /*Rescaling parameter to make sure the sum of Omega is 1 (since the scf is omitted in the first sum of energy densities, we must adapt teh lambda slightly) */
+					"rescale_cdm",   /*Rescaling parameter to make sure final CDM is the desired one. PITROU&UZAN 2023 model */
+					"rescale_free", /*Rescaling parameter to make sure the sum of Omega is 1 (since the scf is omitted in the first sum of energy densities, we must adapt the lambda slightly) PITROU&UZAN 2023 model*/
                                         "Omega_ini_dcdm",           /* unknown param for target 'Omega_dcdmd' */
                                         "omega_ini_dcdm",           /* unknown param for target 'omega_dcdmdr' */
                                         //"scf_shooting_parameter",   /* unknown param for target 'Omega_scf' */
@@ -919,7 +919,7 @@ int input_needs_shooting_for_target(struct file_content * pfc,
     break;
   case Omega_dcdmdr:
   case omega_dcdmdr:
-    //case Omega_scf: //PITROU_UZAN
+    //case Omega_scf: //PITROU&UZAN 2023 model. Shooting is now to ensure mismatch_free=0.
   case Omega_ini_dcdm:
   case omega_ini_dcdm:
     /* Check that Omega's or omega's are nonzero: */
@@ -1232,15 +1232,17 @@ int input_get_guess(double *xguess,
       ba.H0 = ba.h *  1.e5 / _c_;
       break;
     case mismatch_cdm:
-      xguess[index_guess] = A_scf(&ba,ba.phi_ini_scf) /1. * (1. + pfzw->target_value[index_guess]/ba.fraction_nmc);//1 is expected to be the final value of A.
-      dxdy[index_guess] = A_scf(&ba,ba.phi_ini_scf) /1. /ba.fraction_nmc ;//1. is expected to be the final value of A
+      /*PITROU&UZAN 2023 model. Since CDM no longer scales as 1/a^3 but as A(phi)/a^3, and A(phi) depends on the scalar field phi,
+	we must do shooting to end up with the desired cdm energy density*/
+      xguess[index_guess] = A_scf(&ba,ba.phi_ini_scf) /1. * (1. + pfzw->target_value[index_guess]/ba.fraction_nmc);
+      /*1 is expected to be the final value of A if the scalar field transition is early enough.*/
+      dxdy[index_guess] = A_scf(&ba,ba.phi_ini_scf) /1. /ba.fraction_nmc ;//1. is expected to be the final value of A, hence the initial guess with A=1
       ba.rescale_cdm = xguess[index_guess];
-      //printf("DEBUG guess for rescale_cdm is %e\n",xguess[index_guess]);
       break;
     case mismatch_free:
+      /* PITROU&UZAN 2023 model. We do shooting to slightly modify Omega_lambda+Omega_fld by a factor rescale_free so as to ensure that sum Omegas = 1 */
       xguess[index_guess] = 1. + pfzw->target_value[index_guess]/(ba.Omega0_lambda + ba.Omega0_fld);
       dxdy[index_guess] = 1 / (ba.Omega0_lambda + ba.Omega0_fld);
-      //printf("DEBUG guess for rescale_free is %e\n",xguess[index_guess]);
       break;	    
     case Omega_dcdmdr:
       Omega_M = ba.Omega0_cdm+ba.Omega0_idm+ba.Omega0_dcdmdr+ba.Omega0_b;
@@ -1270,7 +1272,7 @@ int input_get_guess(double *xguess,
         a_decay = pow(1+(gamma*gamma-1.)/Omega_M,-1./3.);
       xguess[index_guess] = pfzw->target_value[index_guess]/ba.h/ba.h/a_decay;
       dxdy[index_guess] = 1./a_decay/ba.h/ba.h;
-      break;
+      break;//PITROU&UZAN 2023 model. This is replaced by shooting on rescale_free
       //case Omega_scf:
       /* *
        * This guess is arbitrary, something nice using WKB should be implemented.
@@ -1521,7 +1523,7 @@ int input_try_unknown_parameters(double * unknown_parameter,
       else
         rho_dr_today = 0.;
       output[i] = (rho_dcdm_today+rho_dr_today)/(ba.H0*ba.H0)-pfzw->target_value[i]/ba.h/ba.h;
-      break;
+      break;//PITROU&UZAN 2023 model. Replaced by shooting on rescale_free.
       //case Omega_scf:
       /** In case scalar field is used to fill, pba->Omega0_scf is not equal to pfzw->target_value[i].*/
       //output[i] = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_scf]/(ba.H0*ba.H0)-ba.Omega0_scf;
@@ -3220,14 +3222,14 @@ int input_read_parameters_species(struct file_content * pfc,
       Omega_0_lambda (cosmological constant), Omega0_fld (dark energy
       fluid), Omega0_scf (scalar field) */
   /* Read */
-  //printf("DEBUG Read Omega_L,fld,scf \n");
   class_call(parser_read_double(pfc,"Omega_Lambda",&param1,&flag1,errmsg),
              errmsg,
              errmsg);
   class_call(parser_read_double(pfc,"Omega_fld",&param2,&flag2,errmsg),
              errmsg,
              errmsg);
-  //PITROU_UZAN
+  /*PITROU&UZAN 2023 model. The user is not free to choose the final Omega_scf. It must be very small anyway.
+   The sum of Omegas is ensured to be 1 thanks to shooting with rescale_free which slightly modifies Omega_lambda and Omega_fld)*/
   /*class_call(parser_read_double(pfc,"Omega_scf",&param3,&flag3,errmsg),
              errmsg,
              errmsg);*/
@@ -3263,16 +3265,14 @@ int input_read_parameters_species(struct file_content * pfc,
   Omega_tot += pba->Omega0_ncdm_tot;
   /* Step 1 */
   if (flag1 == _TRUE_){
-    //printf("DEBUG I have read a Omega_lambda and I set it\n");
     pba->Omega0_lambda = param1;
     Omega_tot += pba->Omega0_lambda;
   }
   if (flag2 == _TRUE_){
-    //printf("DEBUG I have read a Omega_fld and I set it\n");
     pba->Omega0_fld = param2;
     Omega_tot += pba->Omega0_fld;
   }
-  //PITROU_UZAN
+  //PITROU&UZAN 2023 model. The scalar field density today cannot be chosen. It is the result of its evolution from initial conditions (and should be very small generically)
   /*if ((flag3 == _TRUE_) && (param3 >= 0.)){
     pba->Omega0_scf = param3;
     Omega_tot += pba->Omega0_scf;
@@ -3396,22 +3396,23 @@ int input_read_parameters_species(struct file_content * pfc,
   if (flag1 == _TRUE_){
     pba->strength_scf_perturbations = param1;
   }
-  
-  //Input of rescale parameters (needed for the shooting procedure where this is the only case where it should be read)
+
+  //PITROU&UZAN 2023 model.
+  //Input of rescaling parameters (needed for the shooting procedure where this is the only case where it should be read)
+  //We first read the CDM rescaling
   class_call(parser_read_double(pfc,"rescale_cdm",&param1,&flag1,errmsg),
              errmsg,
              errmsg);
   if (flag1 == _TRUE_){
     pba->rescale_cdm = param1;
-    //printf("DEBUG I read rescale_cdm = %.15e\n",param1);
   }
 
+  //Then we read the Dark energy (lambda and fld) rescaling
   class_call(parser_read_double(pfc,"rescale_free",&param1,&flag1,errmsg),
              errmsg,
              errmsg);
   if (flag1 == _TRUE_){
     pba->rescale_free = param1;
-    //printf("DEBUG I read rescale_free = %.15e\n",param1);
   }
 
   
@@ -3439,6 +3440,7 @@ int input_read_parameters_species(struct file_content * pfc,
   
   
   /** 8.b) If Omega scalar field (SCF) is different from 0 */
+  //PITROU&UZAN 2023 model. We do nothing for scalar field. It is set by its initial conditions and the choice in the potential V/coupling function A.
   //if (pba->Omega0_scf != 0.){
 
     /** 8.b.1) Additional SCF parameters */
@@ -5956,7 +5958,7 @@ int input_default_params(struct background *pba,
 
   /** 9) Dark energy contributions */
   pba->Omega0_fld = 0.;
-  //PITROU_UZAN
+  //PITROU&UZAN 2023 model. We first ignore the energy density of the scalar field. But the dark energy (lambda and fld) will be adapted with shooting to ensure sum Omegas = 1.
   //pba->Omega0_scf = 0.;
   pba->Omega0_lambda = 1.-pba->Omega0_k-pba->Omega0_g-pba->Omega0_ur-pba->Omega0_b-pba->Omega0_cdm-pba->Omega0_ncdm_tot-pba->Omega0_dcdmdr - pba->Omega0_idr -pba->Omega0_idm;
   /** 8.a) Omega fluid */
@@ -5977,20 +5979,22 @@ int input_default_params(struct background *pba,
   //pba->scf_parameters_size = 0;
   /** 9.b.2) Initial conditions from attractor solution */
   //pba->attractor_ic_scf = _TRUE_;
-  //PITROU_UZAN TODO COmment
+  //PITROU&UZAN 2023 model. Default parameters
   pba->has_scf = _FALSE_;
-  pba->phi_ini_scf = 0.;                // MZ: initial conditions are as multiplicative
-  pba->phi_prime_ini_scf = 0.;          //     factors of the radiation attractor values
-  pba->beta_scf = 1.;
-  pba->lambda_scf = 0.;
+  pba->phi_ini_scf = 0.;                //By default the field is 0, hence we are exactly like in LCDM. The user needs to ask for a non-vanishing initial phi to use the model. 
+  pba->phi_prime_ini_scf = 0.;          // 
+  pba->beta_scf = 1.;//Default coupling function is A = 1 + beta/2*phi^2
+  pba->lambda_scf = 0.;//This is when we want potentials of the form A = 1 + beta/2*phi^2 + lambda/4*phi^4
   pba->rescale_cdm = 1.;
   pba->rescale_free = 1.;
-  pba->Amodel = power24;
-  pba->fraction_nmc = 1.;
-  pba->fraction_nmc_lambda = 0.;
-  pba->strength_scf_perturbations = 1.;
-  pba->mismatch_cdm = -1;//if -1 then no shooting to improve the final cdm density wrt to the desired one.
-  pba->mismatch_free = -1;//if -1 then no shooting to improve the final lambda density wrt to the desired one. That is the Friedmann equation might be slightly wrong (final H0 slightly wrong)
+  pba->Amodel = power24;//Default coupling function
+  pba->fraction_nmc = 1.;//By default all CDM is non-minimally coupled.  The possibility fraction_nmc <1 is not yet fully implemented. This requires to consider isocurvature initial conditions
+  pba->fraction_nmc_lambda = 0.;//Possibilityof coupling partially to the cosmological constant. Amount to choosing a potential V = Lambda*A^4. Not used yet.
+  pba->strength_scf_perturbations = 1.;//To explore how results can be wrong when we not not implement correctlt the perturbations. SHould always be 1 otherwise.
+  pba->mismatch_cdm = -1;
+  /*if -1 then no shooting to improve the final cdm density wrt to the desired one. The final CDM density will then be wrong. This is only for the first step of shooting */
+  pba->mismatch_free = -1;
+  /*if -1 then no shooting to improve the final lambda density wrt to the desired one. That is the Friedmann equation might be slightly wrong (final H0 slightly wrong). This is only for the first step of shooting */
   /** 9.b.3) Tuning parameter */
   //pba->scf_tuning_index = 0;
   /** 9.b.4) Shooting parameter */

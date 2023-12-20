@@ -446,6 +446,8 @@ int background_functions(
     pvecback[pba->index_bg_V_scf] = V_scf(pba,phi); //V_scf(pba,phi); //write here potential as function of phi
     pvecback[pba->index_bg_dV_scf] = dV_scf(pba,phi); // dV_scf(pba,phi); //potential' as function of phi
     pvecback[pba->index_bg_ddV_scf] = ddV_scf(pba,phi); // ddV_scf(pba,phi); //potential'' as function of phi
+    /* PITROU&UZAN 2023 model. The coupling function A and its derivatives.  */
+    //(ln A_scf)' is what is called alpha in [2412.012408] Eq. 13. with the small difference that phi_CLASS = sqrt(2) phi_paper, therefore we have rather alpha = sqrt(2) (ln A)'  
     pvecback[pba->index_bg_A_scf] = A_scf(pba,phi); //A_scf(pba,phi); //
     pvecback[pba->index_bg_dlnA_scf] = dlnA_scf(pba,phi); // d ln A_scf(pba,phi); //
     pvecback[pba->index_bg_ddlnA_scf] = ddlnA_scf(pba,phi); // dd ln A_scf(pba,phi); //
@@ -458,19 +460,18 @@ int background_functions(
     rho_r += 3.*pvecback[pba->index_bg_p_scf]; //field pressure contributes radiation
     rho_m += pvecback[pba->index_bg_rho_scf] - 3.* pvecback[pba->index_bg_p_scf]; //the rest contributes matter
     //printf(" a= %e, Omega_scf = %f, \n ",a, pvecback[pba->index_bg_rho_scf]/rho_tot );
+    
+    // PITROU&UZAN 2023 model. Change of A relative to its initial value A(phi_i)
     ratio_A_over_A_ini = A_scf(pba,phi)/A_scf(pba,pba->phi_ini_scf);
-
+    // PITROU&UZAN 2023. Not really tested when fraction_nmc is not 1. When it is one this expression below is also 1. 
     pvecback[pba->index_bg_frac_nmc_scf] = pba->fraction_nmc*ratio_A_over_A_ini*pba->rescale_cdm / ((1-pba->fraction_nmc) + pba->fraction_nmc*ratio_A_over_A_ini*pba->rescale_cdm ) ;
-    //printf("DEBUG ratio_A_over_A_ini = %e \n",ratio_A_over_A_ini);
   }
 
   
   /* cdm */
   if (pba->has_cdm == _TRUE_) {
-    //PITROU_UZAN add the A/A_i factor. TODO add the upscale
-    //printf("DEBUG pba->fraction_nmc = %e \n",pba->fraction_nmc);
+    //PITROU&UZAN 2023. The rho_cdm evolves as rho_cdm_0 /a^3*A, see Eq. 52 in [2412.12408]  (this is what this expression gives when fraction_nmc =1, which is the only case tested so far.) 
     pvecback[pba->index_bg_rho_cdm] = pba->Omega0_cdm * pow(pba->H0,2) / pow(a,3) * ( (1-pba->fraction_nmc) + pba->fraction_nmc*ratio_A_over_A_ini*pba->rescale_cdm );
-    //pvecback[pba->index_bg_rho_cdm] = pba->Omega0_cdm * pow(pba->H0,2) / pow(a,3) * ( pba->fraction_nmc*ratio_A_over_A_ini*pba->rescale_cdm );
     rho_tot += pvecback[pba->index_bg_rho_cdm];
     p_tot += 0.;
     rho_m += pvecback[pba->index_bg_rho_cdm];
@@ -957,7 +958,7 @@ int background_free_input(
       free(pba->ncdm_psd_parameters);
   }
 
-  //PITROU_UZAN
+  //PITROU&UZAN 2023 model. No such scf parameters
   /*if (pba->Omega0_scf != 0.) {
     if (pba->scf_parameters != NULL)
       free(pba->scf_parameters);
@@ -1015,14 +1016,14 @@ int background_indices(
       pba->has_dr = _TRUE_;
   }
 
+  //PITROU&UZAN 2023 model. Always a scalar field.
   /*if (pba->Omega0_scf != 0.)
     pba->has_scf = _TRUE_;*/
 
-  //PITROU_UZAN
   if (pba->phi_ini_scf != 0.) { 
     pba->has_scf = _TRUE_;
     if (pba->background_verbose > 0)
-      printf("DEBUG we do have a scf\n");
+      printf("We do have a scf\n");
   }
   
   if (pba->Omega0_lambda != 0.)
@@ -1088,7 +1089,7 @@ int background_indices(
   class_define_index(pba->index_bg_V_scf,pba->has_scf,index_bg,1);
   class_define_index(pba->index_bg_dV_scf,pba->has_scf,index_bg,1);
   class_define_index(pba->index_bg_ddV_scf,pba->has_scf,index_bg,1);
-  //PITROU_UZAN
+  //PITROU&UZAN 2023 coupling function A and its derivatives
   class_define_index(pba->index_bg_A_scf,pba->has_scf,index_bg,1);
   class_define_index(pba->index_bg_dlnA_scf,pba->has_scf,index_bg,1);
   class_define_index(pba->index_bg_ddlnA_scf,pba->has_scf,index_bg,1);
@@ -2098,21 +2099,22 @@ int background_solve(
              pba->Omega0_dr+pba->Omega0_dcdm,pba->Omega0_dcdmdr);
       printf("     -> Omega_ini_dcdm/Omega_b = %f\n",pba->Omega_ini_dcdm/pba->Omega0_b);
     }
+    //PITROU&UZAN 2023 model. 
     if (pba->has_scf == _TRUE_) {
-      printf("    Scalar field details TODO:\n");
-      /*printf("     -> Omega_scf = %g, wished %g\n",
+      //printf("    Scalar field details :\n");
+      printf("     -> Omega_scf = %g, wished %g\n",
              pba->background_table[(pba->bt_size-1)*pba->bg_size+pba->index_bg_rho_scf]/pba->background_table[(pba->bt_size-1)*pba->bg_size+pba->index_bg_rho_crit], pba->Omega0_scf);
       if (pba->has_lambda == _TRUE_) {
         printf("     -> Omega_Lambda = %g, wished %g\n",
                pba->background_table[(pba->bt_size-1)*pba->bg_size+pba->index_bg_rho_lambda]/pba->background_table[(pba->bt_size-1)*pba->bg_size+pba->index_bg_rho_crit], pba->Omega0_lambda);
       }
-      printf("     -> parameters: [lambda, alpha, A, B] = \n");
-      printf("                    [");
-      for (index_scf=0; index_scf<pba->scf_parameters_size-1; index_scf++) {
-        printf("%.3f, ",pba->scf_parameters[index_scf]);
-      }
-      printf("%.3f]\n",pba->scf_parameters[pba->scf_parameters_size-1]);*/
-      }
+      //printf("     -> parameters: [lambda, alpha, A, B] = \n");
+      //printf("                    [");
+      //for (index_scf=0; index_scf<pba->scf_parameters_size-1; index_scf++) {
+      //  printf("%.3f, ",pba->scf_parameters[index_scf]);
+      //}
+      //printf("%.3f]\n",pba->scf_parameters[pba->scf_parameters_size-1]);*/
+    }
   }
 
   /**  - store information in the background structure */
@@ -2292,13 +2294,10 @@ int background_initial_conditions(
    * - is rho_ur all there is early on?
    */
   if (pba->has_scf == _TRUE_) {
-    //PITROU_UZAN a good guess assuming final A is 1
-    //If no shooting was used then we put the best guess we can have
+    //PITROU&UZAN 2023 a good guess assuming final A is 1.
     if (pba->rescale_cdm == 1) {
-      pba->rescale_cdm = A_scf(pba, pba->phi_ini_scf)/1.;//1. is expected to be the final value of A.
+      pba->rescale_cdm = A_scf(pba, pba->phi_ini_scf)/1.;//1. is expected to be the final value of A when phi as reached the lowest value.
     }
-    //printf("DEBUG pba->rescale_cdm = %.20e \n",pba->rescale_cdm);
-    //printf("DEBUG pba->rescale_free = %.20e \n",pba->rescale_free);
     
     pvecback_integration[pba->index_bi_phi_scf] = pba->phi_ini_scf;
     pvecback_integration[pba->index_bi_phi_prime_scf] = pba->phi_prime_ini_scf;
@@ -2490,10 +2489,14 @@ int background_output_titles(
   class_store_columntitle(titles,"V'_scf",pba->has_scf);
   class_store_columntitle(titles,"V''_scf",pba->has_scf);
 
-  //PITROU_UZAN
+  //PITROU*UZAN 2023 model. coupling function A and its derivatives
   class_store_columntitle(titles,"A_scf",pba->has_scf);
   class_store_columntitle(titles,"(ln A_scf)'",pba->has_scf);
+  /*(ln A_scf)' is what is called alpha in [2412.012408] Eq. 13.
+    More precisely, since phi_class = sqrt(2) phi_paper, alpha = sqrt(2)*(ln A)'*/
   class_store_columntitle(titles,"(ln A_scf)''",pba->has_scf);
+  /*(ln A_scf)' is what is called alpha in [2412.012408] Eq. 13.
+    More precisely, since phi_class = sqrt(2) phi_paper, beta = 2*(ln A)''*/
   
   class_store_columntitle(titles,"(.)rho_tot",_TRUE_);
   class_store_columntitle(titles,"(.)p_tot",_TRUE_);
@@ -2568,7 +2571,7 @@ int background_output_data(
     class_store_double(dataptr,pvecback[pba->index_bg_dV_scf],pba->has_scf,storeidx);
     class_store_double(dataptr,pvecback[pba->index_bg_ddV_scf],pba->has_scf,storeidx);
 
-    //PITROU_UZAN
+    //PITROU&UZAN 2023 model. Coupling function A and its derivatives
     class_store_double(dataptr,pvecback[pba->index_bg_A_scf],pba->has_scf,storeidx);
     class_store_double(dataptr,pvecback[pba->index_bg_dlnA_scf],pba->has_scf,storeidx);
     class_store_double(dataptr,pvecback[pba->index_bg_ddlnA_scf],pba->has_scf,storeidx);
@@ -2692,7 +2695,16 @@ int background_derivs(
     /** - Scalar field equation: \f$ \phi'' + 2 a H \phi' + a^2 dV = 0 \f$  (note H is wrt cosmological time)
         written as \f$ d\phi/dlna = phi' / (aH) \f$ and \f$ d\phi'/dlna = -2*phi' - (a/H) dV \f$ */
     dy[pba->index_bi_phi_scf] = y[pba->index_bi_phi_prime_scf]/a/H;
-    //PITROU_UZAN
+    /*PITROU&UZAN 2023 model. Added the contribution from d lnA / d phi in second line. See Eq. 48 in [2412.12408]
+    Note however that phi_scf_class = sqrt(2)*phi_scf_article. And thus (ln A)'_CLASS = alpha_article/sqrt(2).
+    Hence this Klein-Gordon equation is obtained from Eq. 48 of [2412.12408] * sqrt(2).
+    Finally we must also take into account that in class, rho_CLASS stands for 8 pi G rho/3.
+    All this taken into account, this explains the 3/2*sqrt(2)*sqrt(2) prefactor in the last line.
+    The 3 is from the CLASS convention on rho_D.
+    The /2 is in the equation expression itself.
+    The sqrt(2) is because we multiply Eq. 48 by sqrt(2) to convert it into an equation in phi_scf_CLASS.
+    And the other sqrt(2) is because (ln A)'_CLASS = alpha_article/sqrt(2)
+    */
     dy[pba->index_bi_phi_prime_scf] = - 2*y[pba->index_bi_phi_prime_scf] - a*dV_scf(pba,y[pba->index_bi_phi_scf])/H
       -3./2.*2 * pvecback[pba->index_bg_frac_nmc_scf] *pvecback[pba->index_bg_rho_cdm] * dlnA_scf(pba,y[pba->index_bi_phi_scf]) *a/H;
   }
@@ -3038,6 +3050,7 @@ double ddV_scf(
   return ddV_e_scf(pba,phi)*V_p_scf(pba,phi) + 2*dV_e_scf(pba,phi)*dV_p_scf(pba,phi) + V_e_scf(pba,phi)*ddV_p_scf(pba,phi);
   }*/
 
+//PITROU&UZAN 2023 model. The case where couopling to cosmological constant amounts to a potential Lambda*(A^4-1).
 double V_scf(
              struct background *pba,
              double phi) {
@@ -3069,8 +3082,10 @@ double ddV_scf(
 }
 
 
-//See PITROU&UZAN2023 for definitions of these coupling constants
+//See PITROU&UZAN 2023 for definitions of these coupling constants
 //Beware that the scalarfield \varhi in class is related to \varphi in Pitrou&Uzan2023 articles by \varphi_CLASS = \sqrt(2) \varphi_{papers}
+//The power24 potential is A = 1 + beta/2*phi^2 + lambda/4*phi^4.
+//See section IIC of [2312.12408] (Pitrou&Uzan) for definitions of coupling function.
 double A_scf(
              struct background *pba,
              double phi) {

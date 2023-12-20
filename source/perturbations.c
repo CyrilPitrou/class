@@ -747,7 +747,10 @@ int perturbations_init(
              ppt->error_message,
              "In the synchronous gauge, it is not self-consistent to assume no CDM: the later is used to define the initial timelike hypersurface. You can either add a negligible amount of CDM, or switch to newtonian gauge");
 
-  //PITROU_UZAN In case of Newtonian gauge, one needs both phi_prime and psi_prime (Bardeen potentials). Since only one is computed in perturbations_einstein, the Newtonian gauge resul is approximate.
+  /*PITROU&UZAN 2023.
+   In case of Newtonian gauge, one needs both phi_prime and psi_prime (Bardeen potentials) in the perturbed Klein-Gordon equation.
+   Since only one is computed in perturbations_einstein, we have replaced on potential derivative by the other potential derivative in the Klein-Gordon equation.
+   Since this is incorrect, the Newtonian gauge result is only approximate. Computations in Newtonian gauge should therefore not be used and synchronous gauge should be preferred.*/
   /*class_test((ppt->gauge == newtonian) && (pba->has_scf == _TRUE_),
              ppt->error_message,
              "In case there is a scalar field, we cannot use the Newtonian gauge (because this requires the phi_metric' (derivative of a Bardeen potential which is never computed");*/
@@ -4530,6 +4533,7 @@ int perturbations_vector_init(
         ppv->y[ppv->index_pt_phi] =
           ppw->pv->y[ppw->pv->index_pt_phi];
 
+      // PITROU&UZAN 2023 model. 
       if (pba->has_scf == _TRUE_) {
 	
 	ppv->y[ppv->index_pt_phi_scf] =
@@ -4638,7 +4642,9 @@ int perturbations_vector_init(
           ppv->y[ppv->index_pt_perturbed_recombination_delta_temp] = 1./3.*ppv->y[ppw->pv->index_pt_delta_b];
           ppv->y[ppv->index_pt_perturbed_recombination_delta_chi] =0.;
         }
-	
+
+	//PITROU&UZAN 2023 model. The scalar field is there in all cases,
+	//hence this recopying of final values to initial ones in  the next phase is performed in all cases (and in some lines of code added above)
 	/*if (pba->has_scf == _TRUE_) {
 	  
 	  ppv->y[ppv->index_pt_phi_scf] =
@@ -4711,6 +4717,7 @@ int perturbations_vector_init(
           }
         }
 
+	// PITROU&UZAN 2023 model. The scalar field is there in all cases and is recopied in some lines of code above.
 	/*if (pba->has_scf == _TRUE_) {
 	  
 	  ppv->y[ppv->index_pt_phi_scf] =
@@ -5605,9 +5612,11 @@ int perturbations_initial_conditions(struct precision * ppr,
          *  with \f$ c_s^2 = 1 \f$ and w = 1/3 (ASSUMES radiation TRACKING)
          */
 
+	// PITROU&UZAN 2023 model. Initial conditions as mentionned after Eq. 94 of 2412.12408.
         ppw->pv->y[ppw->pv->index_pt_phi_scf] = -ppw->pvecback[pba->index_bg_ddlnA_scf]/ppw->pvecback[pba->index_bg_dlnA_scf] * ppw->pv->y[ppw->pv->index_pt_delta_cdm];
         /*  a*a/k/k/ppw->pvecback[pba->index_bg_phi_prime_scf]*k*ktau_three/4.*1./(4.-6.*(1./3.)+3.*1.) * (ppw->pvecback[pba->index_bg_rho_scf] + ppw->pvecback[pba->index_bg_p_scf])* ppr->curvature_ini * s2_squared; */
 
+	// PITROU&UZAN 2023 model. This will reach the slow-roll attractor rapidly.
         ppw->pv->y[ppw->pv->index_pt_phi_prime_scf] = 0.;
         /* delta_fld expression * rho_scf with the w = 1/3, c_s = 1
            a*a/ppw->pvecback[pba->index_bg_phi_prime_scf]*( - ktau_two/4.*(1.+1./3.)*(4.-3.*1.)/(4.-6.*(1/3.)+3.*1.)*ppw->pvecback[pba->index_bg_rho_scf] - ppw->pvecback[pba->index_bg_dV_scf]*ppw->pv->y[ppw->pv->index_pt_phi_scf])* ppr->curvature_ini * s2_squared; */
@@ -7212,9 +7221,6 @@ int perturbations_total_stress_energy(
     */
     if (pba->has_scf == _TRUE_) {
 
-      //Implementation of RSA to cut contributions at very late time. Not working yet
-      //if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
-      
 	if (ppt->gauge == synchronous){
 	  delta_rho_scf =  1./3.*
 	    (1./a2*ppw->pvecback[pba->index_bg_phi_prime_scf]*y[ppw->pv->index_pt_phi_prime_scf]
@@ -7236,11 +7242,6 @@ int perturbations_total_stress_energy(
 	     - ppw->pvecback[pba->index_bg_dV_scf]*y[ppw->pv->index_pt_phi_scf]
 	     - 1./a2*pow(ppw->pvecback[pba->index_bg_phi_prime_scf],2)*psi);
 	}
-	/*}
-      else {
-	delta_rho_scf = 0.;
-	delta_p_scf = 0.;
-	}*/
       
       ppw->delta_rho += pba->strength_scf_perturbations*delta_rho_scf;
       
@@ -7942,7 +7943,6 @@ int perturbations_sources(
 
     /* delta_scf */
     if (ppt->has_source_delta_scf == _TRUE_) {
-      //if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_on) {
       if (ppt->gauge == synchronous){
 	delta_rho_scf =  1./3.*
 	  (1./a2*ppw->pvecback[pba->index_bg_phi_prime_scf]*y[ppw->pv->index_pt_phi_prime_scf]
@@ -7956,10 +7956,6 @@ int perturbations_sources(
 	   - 1./a2*pow(ppw->pvecback[pba->index_bg_phi_prime_scf],2)*ppw->pvecmetric[ppw->index_mt_psi])
 	  + 3.*a_prime_over_a*(1.+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf])*theta_over_k2; // N-body gauge correction
       }
-      /*}
-      else {
-	delta_rho_scf = 0.;
-	}*/
       _set_source_(ppt->index_tp_delta_scf) = pba->strength_scf_perturbations*delta_rho_scf/pvecback[pba->index_bg_rho_scf];
     }
 
@@ -8481,8 +8477,7 @@ int perturbations_print_variables(double tau,
     }
 
     if (pba->has_scf == _TRUE_){
-      //if (ppw->approx[ppw->index_ap_rsa]==(int)rsa_off) {
-      
+            
       if (ppt->gauge == synchronous){
 	delta_rho_scf =  1./3.*
 	  (1./a2*ppw->pvecback[pba->index_bg_phi_prime_scf]*y[ppw->pv->index_pt_phi_prime_scf]
@@ -8500,14 +8495,7 @@ int perturbations_print_variables(double tau,
       
       delta_scf = delta_rho_scf/pvecback[pba->index_bg_rho_scf];
       theta_scf = rho_plus_p_theta_scf/(pvecback[pba->index_bg_rho_scf]+pvecback[pba->index_bg_p_scf]);
-      /*}
-      else {
-	delta_rho_scf = 0.;
-	rho_plus_p_theta_scf =0.;
-	delta_scf = 0.;
-	theta_scf = 0.;
-	}*/
-	
+      	
     }
 
     /* converting synchronous variables to newtonian ones */
@@ -8560,7 +8548,7 @@ int perturbations_print_variables(double tau,
 
       if (pba->has_scf == _TRUE_) {
         //delta_scf += alpha*(-3.0*H*(1.0+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf]));//Seems strange formula. The factor a is missing in front of H.
-	delta_scf += alpha*(-3.0*H*a*(1.0+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf]));//Corrected version by PITROU
+	delta_scf += alpha*(-3.0*H*a*(1.0+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf]));//Corrected version by PITROU*UZAN 2023
 	theta_scf += k*k*alpha;
       }
 
@@ -9308,8 +9296,9 @@ int perturbations_derivs(double tau,
       /** - ----> synchronous gauge: cdm density only (velocity set to zero by definition of the gauge) */
 
       if (ppt->gauge == synchronous) {
-        dy[pv->index_pt_delta_cdm] = -metric_continuity ; /* cdm density. PITROU I have added the theta_cdm term (since with a scalar field it is no more 0) */
+        dy[pv->index_pt_delta_cdm] = -metric_continuity ; /* cdm density. */
 
+	// PITROU&UZAN 2023 model. The synchronous gauge can no more be CDM comoving (see e.g. Eq. 96 in 2412.12408).
 	if (pba->has_scf == _TRUE_) {
 	  dy[pv->index_pt_delta_cdm] += -y[pv->index_pt_theta_cdm];//Term needed since synchronous gauge has no more vanishing theta_cdm when there is a scalar field
 	  dy[pv->index_pt_theta_cdm] = - a_prime_over_a*y[pv->index_pt_theta_cdm]; /* cdm velocity */
@@ -9317,11 +9306,13 @@ int perturbations_derivs(double tau,
       }
 
       //PITROU_UZAN add contribution for non minimally coupled scalar field. This is for both gauges.
-      //if ((pba->has_scf == _TRUE_) && (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off)) {
-	if (pba->has_scf == _TRUE_) {
-	
+      if (pba->has_scf == _TRUE_) {
+
+	// PITROU&UZAN 2023 model. Extra terms in Eq. 87 of 2412.12408. 
 	dy[pv->index_pt_delta_cdm] += pba->strength_scf_perturbations*pvecback[pba->index_bg_frac_nmc_scf] * (pvecback[pba->index_bg_ddlnA_scf]*pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_phi_scf] + pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_phi_prime_scf]);
-	
+
+	// PITROU&UZAN 2023 model. Extra terms in Eq. 88 of 2412.12408. Beware than in class, theta_cdm stands for Delta v_cdm. Hence we must consider Delta (Laplacian) of Eq. 88.
+	// Therefore the \Delta \chi from the last term of Eq. 88 becomes -k^2 \chi. Is it correct in ciurved background ?
 	dy[pv->index_pt_theta_cdm] +=  pba->strength_scf_perturbations*(-1.) * pvecback[pba->index_bg_frac_nmc_scf] * pvecback[pba->index_bg_dlnA_scf] * (pvecback[pba->index_bg_phi_prime_scf]*y[pv->index_pt_theta_cdm]  -  k2 * y[pv->index_pt_phi_scf]);
       }
     }
@@ -9487,23 +9478,24 @@ int perturbations_derivs(double tau,
 
       /** - ----> Klein Gordon equation */
 
-      //We restrict to RSA off when solving scalar field perturbations
-      //if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
-	
 	/** - ----> field value */
 	
       dy[pv->index_pt_phi_scf] = y[pv->index_pt_phi_prime_scf];
 
 	if (ppt->gauge == synchronous) {
 	  
-	  //PITROU_UZAN 
+	  //PITROU&UZAN 2023 model 
 	  dy[pv->index_pt_phi_prime_scf] =  - 2.*a_prime_over_a*y[pv->index_pt_phi_prime_scf]
 	    - metric_continuity*pvecback[pba->index_bg_phi_prime_scf] //  metric_continuity = h'/2 with h = -3 Psi_Uzan + Delta E_Uzan.
 	    - (k2 + a2*pvecback[pba->index_bg_ddV_scf])*y[pv->index_pt_phi_scf]
-	    - 3 * a2 * pvecback[pba->index_bg_rho_cdm] *pvecback[pba->index_bg_frac_nmc_scf]* (pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_delta_cdm] + pvecback[pba->index_bg_ddlnA_scf]*y[pv->index_pt_phi_scf]); //checked
+	    - 3 * a2 * pvecback[pba->index_bg_rho_cdm] *pvecback[pba->index_bg_frac_nmc_scf]* (pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_delta_cdm] + pvecback[pba->index_bg_ddlnA_scf]*y[pv->index_pt_phi_scf]);
+	  // The last line are the last terms of Eq. 90 in 2412.12408.
+	  // Beware that chi_CLASS = sqrt(2) chi_paper. Also rho_CLASS = 8 pi G rho/3. Therefore the 4 pi G rho_D becomes 3/2 rhoD_class. Also we must multiply Eq. 90 by sqrt(2) to convert chi_paper to chi_CLASS. And finally alpha_paper = sqrt(2) (ln A)', and both these sqrt(2) factors bring an extra 2 factor. Hence 3/2*2 = 3 in front of this last line.
+	  // For the potential, we have V_CLASS  = 2 V_paper, therefore V_CLASS'' = V_paper''
+	  // (because for class the derivative si wrt to phi_class and in the paper wrt to phi_paper and phi_CLASS = sqrt(2) phi_paper)
 	}
 	
-	//Newtonian gauge does not work well. First the computation of psi' is not very accurate.
+	//Newtonian gauge does not work well. We cheat by replacing 3 phi_CLASS' + psi_CLASS' by 4 phi_CLASS'.
 	if (ppt->gauge == newtonian) {
 	  dy[pv->index_pt_phi_prime_scf] =  - 2.*a_prime_over_a*y[pv->index_pt_phi_prime_scf]
 	    //+ pvecback[pba->index_bg_phi_prime_scf] *(3*pvecmetric[ppw->index_mt_phi_prime] +pvecmetric[ppw->index_mt_psi_prime]) //Here I put in CLASS notation 3 Phi' + Psi'. However computing Psi' is a nightmare. Therefore Newtonian gauge result is not exact.
@@ -9511,12 +9503,8 @@ int perturbations_derivs(double tau,
 	    + 2 * a2 * pvecmetric[ppw->index_mt_psi] *( -pvecback[pba->index_bg_dV_scf] -(3./2.)*2.*pvecback[pba->index_bg_frac_nmc_scf]*pvecback[pba->index_bg_rho_cdm]*pvecback[pba->index_bg_dlnA_scf])
 	    - (k2 + a2*pvecback[pba->index_bg_ddV_scf])*y[pv->index_pt_phi_scf]
 	    - 3 * a2 * pvecback[pba->index_bg_rho_cdm] *pvecback[pba->index_bg_frac_nmc_scf]* (pvecback[pba->index_bg_dlnA_scf]*y[pv->index_pt_delta_cdm] + pvecback[pba->index_bg_ddlnA_scf]*y[pv->index_pt_phi_scf]);
+	  // See comments above on the 3 prefactor which comes from multiple conventions.
 	}
-	/*}
-      else {
-	dy[pv->index_pt_phi_scf] = 0.;
-	dy[pv->index_pt_phi_prime_scf] = 0.;
-	}*/
     }
 
     /** - ---> ultra-relativistic neutrino/relics (ur) */
