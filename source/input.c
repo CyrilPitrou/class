@@ -5983,7 +5983,7 @@ int input_default_params(struct background *pba,
   pba->has_scf = _FALSE_;
   pba->phi_ini_scf = 0.;                //By default the field is 0, hence we are exactly like in LCDM. The user needs to ask for a non-vanishing initial phi to use the model. 
   pba->phi_prime_ini_scf = 0.;          // 
-  pba->beta_scf = 1.;//Default coupling function is A = 1 + beta/2*phi^2
+  pba->beta_scf = 0.;//Default coupling function is A = 1 + beta/2*phi^2
   pba->lambda_scf = 0.;//This is when we want potentials of the form A = 1 + beta/2*phi^2 + lambda/4*phi^4
   pba->rescale_cdm = 1.;
   pba->rescale_free = 1.;
