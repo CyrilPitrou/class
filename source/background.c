@@ -3137,6 +3137,7 @@ double ddA_scf(
 }
 
 
+//This is (d lnA / d phi_class), therefore it is related to alpha defined in Eq. 13 of 2412.12408 by alpha = sqrt(2)* (d lnA / d phi_class)
 double dlnA_scf(
               struct background *pba,
               double phi) {
@@ -3146,6 +3147,7 @@ double dlnA_scf(
   return dA/A;
 }
 
+//This is (d^2 lnA / d phi_class^2), therefore it is related to beta defined in Eq. 13 of 2412.12408 by beta = 2 * (d^2 lnA / d phi_class^2)     
 double ddlnA_scf(
               struct background *pba,
               double phi) {
