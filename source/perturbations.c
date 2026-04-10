@@ -6799,7 +6799,7 @@ int perturbations_initial_conditions(struct precision * ppr,
       }
     }
 
-        Corrections which are of order (k*tau)^2 for h, but order (k*tau) for h' (Credits C. Pitrou v3.3.0)
+    /** Corrections which are of order (k*tau)^2 for h, but order (k*tau) for h' (Credits C. Pitrou v3.3.0)
         Not including them results in 0.2-0.3% differences, which remain till final values and
         are not washed away after initial transition to the correct attractor. They read:
 
@@ -11451,6 +11451,10 @@ int perturbations_derivs(double tau,
 	    }
 	    break;
 	    }*/
+	  
+	  if (ppt->has_magnetic_transfer == _TRUE_)
+	    dy[pv->index_pt_magnetic] = _inv_Mpc2_Gauss_*sqrt(k2 + 2.*pba->K)*a*pvecthermo[pth->index_th_dkappa]/R/pvecthermo[pth->index_th_xe]*ppw->tca_slip_vector;
+	  
       }
     }
     else {
