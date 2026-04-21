@@ -110,6 +110,11 @@ int lensing_init(
   double ** d3m3 = NULL;
   double ** d4m2 = NULL;
   double ** d4m4 = NULL;
+  //The following Wigner d functions are only neede when using higher order lensing
+  double ** d5m1 = NULL;
+  double ** d5m3 = NULL;
+  double ** d6m2 = NULL;
+  double ** d33 = NULL;
   double * buf_dxx; /* buffer */
 
   double * Cgl;   /* Cgl[index_mu] */
@@ -121,7 +126,8 @@ int lensing_init(
   double * ksip = NULL;  /* ksip[index_mu] */
   double * ksim = NULL;  /* ksim[index_mu] */
 
-  int num_mu,index_mu,icount;
+  int num_mu,index_mu;
+  long icount;
   int l;
   double ll;
   double * cl_unlensed;  /* cl_unlensed[index_ct] */
@@ -158,7 +164,7 @@ int lensing_init(
   }
   else {
     if (ple->lensing_verbose > 0) {
-      printf("Computing lensed spectra ");
+      printf("Computing lensed spectra at order %d in C0 and %d in C2 ",ple->lensing_C0_order,ple->lensing_C2_order);
       if (ppr->accurate_lensing==_TRUE_)
         printf("(accurate mode)\n");
       else
@@ -182,7 +188,12 @@ int lensing_init(
     num_mu += num_mu%2; /* Force it to be even */
   } else {
     /* Integrate correlation function difference on [0,pi/16] */
-    num_mu = (ple->l_unlensed_max * 2 )/16;
+    if (ple->l_unlensed_max <= 3000)
+      num_mu = (ple->l_unlensed_max * 2 )/16;
+    else
+      num_mu = 2 * (ple->l_unlensed_max * 2 )/8;
+    /** C. Pitrou 22/04/2026. I increased the density by a factor 2 here, and use [0,Pi/8] instead of [0,Pi/16].
+	This is needed to get good results at l=4000 or l=5000. */
   }
   /** - allocate array of \f$ \mu \f$ values, as well as quadrature weights */
 
@@ -212,7 +223,10 @@ int lensing_init(
 
   } else { /* Crude integration on [0,pi/16]: Riemann sum on theta */
 
-    delta_theta = _PI_/16. / (double)(num_mu-1);
+    if (ple->l_unlensed_max <= 3000)
+      delta_theta = _PI_/16. / (double)(num_mu-1);
+    else
+      delta_theta = _PI_/8. / (double)(num_mu-1);//C. Pitrou : in agreement with the choice above of using [0,Pi/8] instead of [0,Pi/16] for large lmax.
     for (index_mu=0;index_mu<num_mu-1;index_mu++) {
       theta = (index_mu+1)*delta_theta;
       mu[index_mu] = cos(theta);
@@ -280,6 +294,27 @@ int lensing_init(
     icount += 5*num_mu*(ple->l_unlensed_max+1);
   }
 
+  //The following Wigner d functions are only needed when using higher order lensing
+  if ((ple->lensing_C2_order > 2) || (ple->lensing_C0_order > 0)) {
+    class_alloc(d5m1,
+                num_mu*sizeof(double*),
+                ple->error_message);
+
+    class_alloc(d5m3,
+                num_mu*sizeof(double*),
+                ple->error_message);
+
+    class_alloc(d6m2,
+                num_mu*sizeof(double*),
+                ple->error_message);
+    
+    class_alloc(d33,
+                num_mu*sizeof(double*),
+                ple->error_message);
+    
+    icount += 4*num_mu*(ple->l_unlensed_max+1);
+  }
+
   icount += 5*(ple->l_unlensed_max+1); /* for arrays sqrt1[l] to sqrt5[l] */
 
   /** - Allocate main contiguous buffer **/
@@ -318,6 +353,18 @@ int lensing_init(
     icount += 5*num_mu*(ple->l_unlensed_max+1);
   }
 
+  //These Wigner d functions are only used when considering higher order lensing
+  if ((ple->lensing_C2_order > 2) || (ple->lensing_C0_order > 0)) {
+
+    for (index_mu=0; index_mu<num_mu; index_mu++) {
+      d5m1[index_mu] = &(buf_dxx[icount+index_mu           * (ple->l_unlensed_max+1)]);
+      d5m3[index_mu] = &(buf_dxx[icount+(index_mu+num_mu)  * (ple->l_unlensed_max+1)]);
+      d6m2[index_mu]= &(buf_dxx[icount+(index_mu+2*num_mu) * (ple->l_unlensed_max+1)]);
+      d33[index_mu]= &(buf_dxx[icount+(index_mu+3*num_mu)  * (ple->l_unlensed_max+1)]);
+    }
+    icount += 4*num_mu*(ple->l_unlensed_max+1);
+  }
+  
   sqrt1 = &(buf_dxx[icount]);
   icount += ple->l_unlensed_max+1;
   sqrt2 = &(buf_dxx[icount]);
@@ -330,19 +377,19 @@ int lensing_init(
   icount += ple->l_unlensed_max+1;
 
   //debut = omp_get_wtime();
-  class_call(lensing_d00(mu,num_mu,ple->l_unlensed_max,d00),
+  class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,0,0,d00,ple->error_message),
              ple->error_message,
              ple->error_message);
 
-  class_call(lensing_d11(mu,num_mu,ple->l_unlensed_max,d11),
+  class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,1,1,d11,ple->error_message),
              ple->error_message,
              ple->error_message);
 
-  class_call(lensing_d1m1(mu,num_mu,ple->l_unlensed_max,d1m1),
+  class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,1,-1,d1m1,ple->error_message),
              ple->error_message,
              ple->error_message);
 
-  class_call(lensing_d2m2(mu,num_mu,ple->l_unlensed_max,d2m2),
+  class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,2,-2,d2m2,ple->error_message),
              ple->error_message,
              ple->error_message);
   //fin = omp_get_wtime();
@@ -352,41 +399,62 @@ int lensing_init(
 
   if (ple->has_te==_TRUE_) {
 
-    class_call(lensing_d20(mu,num_mu,ple->l_unlensed_max,d20),
-               ple->error_message,
-               ple->error_message);
+    class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,2,0,d20,ple->error_message),
+             ple->error_message,
+             ple->error_message);
+    
+    class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,3,-1,d3m1,ple->error_message),
+             ple->error_message,
+             ple->error_message);
 
-    class_call(lensing_d3m1(mu,num_mu,ple->l_unlensed_max,d3m1),
-               ple->error_message,
-               ple->error_message);
-
-    class_call(lensing_d4m2(mu,num_mu,ple->l_unlensed_max,d4m2),
-               ple->error_message,
-               ple->error_message);
+    class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,4,-2,d4m2,ple->error_message),
+             ple->error_message,
+             ple->error_message);
 
   }
 
   if (ple->has_ee==_TRUE_ || ple->has_bb==_TRUE_) {
 
-    class_call(lensing_d22(mu,num_mu,ple->l_unlensed_max,d22),
-               ple->error_message,
-               ple->error_message);
+    class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,2,2,d22,ple->error_message),
+             ple->error_message,
+             ple->error_message);
 
-    class_call(lensing_d31(mu,num_mu,ple->l_unlensed_max,d31),
-               ple->error_message,
-               ple->error_message);
+    class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,3,1,d31,ple->error_message),
+             ple->error_message,
+             ple->error_message);
 
-    class_call(lensing_d3m3(mu,num_mu,ple->l_unlensed_max,d3m3),
-               ple->error_message,
-               ple->error_message);
+    class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,3,-3,d3m3,ple->error_message),
+             ple->error_message,
+             ple->error_message);
 
-    class_call(lensing_d40(mu,num_mu,ple->l_unlensed_max,d40),
-               ple->error_message,
-               ple->error_message);
+    class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,4,0,d40,ple->error_message),
+             ple->error_message,
+             ple->error_message);
 
-    class_call(lensing_d4m4(mu,num_mu,ple->l_unlensed_max,d4m4),
-               ple->error_message,
-               ple->error_message);
+    class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,4,-4,d4m4,ple->error_message),
+             ple->error_message,
+             ple->error_message);
+
+  }
+
+  //C. Pitrou we add the Wigner d functions needed for higher order lensing
+  if ((ple->lensing_C2_order > 2) || (ple->lensing_C0_order > 0)) {
+
+    class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,5,-1,d5m1,ple->error_message),
+             ple->error_message,
+             ple->error_message);
+
+    class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,5,-3,d5m3,ple->error_message),
+	       ple->error_message,
+	       ple->error_message);
+
+    class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,6,-2,d6m2,ple->error_message),
+	       ple->error_message,
+	       ple->error_message);
+
+    class_call(lensing_dm1m2(mu,num_mu,ple->l_unlensed_max,3,3,d33,ple->error_message),
+	       ple->error_message,
+	       ple->error_message);
   }
 
   /** - compute \f$ Cgl(\mu)\f$, \f$ Cgl2(\mu) \f$ and sigma2(\f$\mu\f$) */
@@ -573,7 +641,7 @@ int lensing_init(
     class_run_parallel(=,
 
     int l;
-    double declare_list_of_variables_inside_parallel_region(ll,fac, fac1, X_000, X_p000, X_220,X_022,X_p022,X_121,X_132,X_242);
+    double declare_list_of_variables_inside_parallel_region(ll,fac, fac1, X_000, X_p000, X_220,X_022,X_p022,X_121,X_132,X_242, x);
     double declare_list_of_variables_inside_parallel_region(res,resX,resp,resm,lens,lensp,lensm);
     for (l=2;l<=ple->l_unlensed_max;l++) {
 
@@ -595,6 +663,9 @@ int lensing_init(
       X_121=0.;
       X_p022=0.;
       X_022=0.;
+
+      x = 2*fac*Cgl2[index_mu];//l(l+1)/2 C_2
+      //y = 2*fac*Cgl[index_mu];//l(l+1)/2 C_0
 
       if (ple->has_te==_TRUE_ || ple->has_ee==_TRUE_ || ple->has_bb==_TRUE_) {
         /* X_022 = exp(-(fac-1.)*sigma2[index_mu]); */
@@ -620,12 +691,32 @@ int lensing_init(
 
         res = fac1*cl_tt[l];
 
-        lens = (X_000*X_000*d00[index_mu][l] +
+	lens=X_000*X_000*d00[index_mu][l];//Order C2^0, meaning we only have the effect of exp(-l*(l+1)sigma2/2)
+
+	//All sky method
+	if (ple->lensing_C2_order >= 1) {
+	  lens += X_p000*X_p000*d1m1[index_mu][l]*Cgl2[index_mu]*8./(ll*(ll+1));//First order in C_2
+	  if (ple->lensing_C2_order >= 2) {
+	    lens += (X_p000*X_p000*d00[index_mu][l] + X_220*X_220*d2m2[index_mu][l])*Cgl2[index_mu]*Cgl2[index_mu]; //second order in C_2
+	    if (ple->lensing_C2_order >= 3) {
+	      lens += X_000*X_000 * x*x*x * (1/8.*d1m1[index_mu][l] + 1/24.*d3m3[index_mu][l]);//Third order in C_2
+	      if (ple->lensing_C2_order >= 4) {
+		lens += X_000*X_000 * x*x*x*x * (1/64.*d00[index_mu][l] + 1/48.*d2m2[index_mu][l] + 1/192.*d4m4[index_mu][l]);//Fourth order in C_2
+	      }
+	    }
+	  }
+	}
+	if (ple->lensing_C0_order == 1) {
+	  lens += (2*X_000*X_p000*d00[index_mu][l]  + 8./(ll*(ll+1))*X_p000*X_p000*d11[index_mu][l])*Cgl[index_mu]; //first order in C_0 (no coupling to C_2 since very small)
+	}
+     
+      // Old implementation 
+      /*lens = (X_000*X_000*d00[index_mu][l] +
                 X_p000*X_p000*d1m1[index_mu][l]
                 *Cgl2[index_mu]*8./(ll*(ll+1)) +
                 (X_p000*X_p000*d00[index_mu][l] +
                  X_220*X_220*d2m2[index_mu][l])
-                *Cgl2[index_mu]*Cgl2[index_mu]);
+		 *Cgl2[index_mu]*Cgl2[index_mu]);*/
         if (ppr->accurate_lensing == _FALSE_) {
           /* Remove unlensed correlation function */
           lens -= d00[index_mu][l];
@@ -638,13 +729,31 @@ int lensing_init(
 
         resX = fac1*cl_te[l];
 
+	lens = X_022*X_000*d20[index_mu][l];//Order C2^0, meaning we essentially only have the effect of exp(-l*(l+1)sigma2/2)
 
-        lens = ( X_022*X_000*d20[index_mu][l] +
+	if (ple->lensing_C2_order >= 1 ) {
+	  lens += Cgl2[index_mu]*2.*X_p000/sqrt5[l] * (X_121*d11[index_mu][l] + X_132*d3m1[index_mu][l]);
+	  if (ple->lensing_C2_order >= 2 ) {
+	    lens += 0.5 * Cgl2[index_mu] * Cgl2[index_mu] *  ( ( 2.*X_p022*X_p000+X_220*X_220 ) * d20[index_mu][l] + X_220*X_242*d4m2[index_mu][l] );
+	    if (ple->lensing_C2_order >= 3 ) {
+	      lens+= X_000*X_000* x*x*x * (1/16.*d11[index_mu][l] + 1/12.*d3m1[index_mu][l] + 1/48.*d5m3[index_mu][l]);
+	      if (ple->lensing_C2_order >= 4 ) {
+		lens += X_000*X_000* x*x*x*x * (10/384.*d20[index_mu][l]  +5/382.*d4m2[index_mu][l] );
+	      }
+	    }
+	  }
+	}
+	if (ple->lensing_C0_order == 1) {
+	  lens += ( (X_022*X_p000 + X_p022*X_000)*d20[index_mu][l]  + 2./sqrt(ll*(ll+1))*(X_p000*X_132*d31[index_mu][l] + X_121*X_p000*d1m1[index_mu][l]) )*Cgl[index_mu]; //first order in C_0 (no coupling to C_2 since it is very small)
+	}
+
+	//old implementation
+        /**lens = ( X_022*X_000*d20[index_mu][l] +
                  Cgl2[index_mu]*2.*X_p000/sqrt5[l] *
                  (X_121*d11[index_mu][l] + X_132*d3m1[index_mu][l]) +
                  0.5 * Cgl2[index_mu] * Cgl2[index_mu] *
                  ( ( 2.*X_p022*X_p000+X_220*X_220 ) *
-                   d20[index_mu][l] + X_220*X_242*d4m2[index_mu][l] ) );
+		 d20[index_mu][l] + X_220*X_242*d4m2[index_mu][l] ) );*/
         if (ppr->accurate_lensing == _FALSE_) {
           lens -= d20[index_mu][l];
         }
@@ -657,6 +766,35 @@ int lensing_init(
         resp = fac1*(cl_ee[l]+cl_bb[l]);
         resm = fac1*(cl_ee[l]-cl_bb[l]);
 
+	//Order C2^0 meaning we essentially only have the effect of exp(-l*(l+1)sigma2/2)
+	lensp = X_022*X_022*d22[index_mu][l];
+	lensm = X_022*X_022*d2m2[index_mu][l];
+
+	//First order in C2
+	if (ple->lensing_C2_order >= 1) {
+	  lensp += 2.*Cgl2[index_mu]*X_132*X_121*d31[index_mu][l];
+	  lensm += Cgl2[index_mu] * ( X_121*X_121*d1m1[index_mu][l] + X_132*X_132*d3m3[index_mu][l] );
+	  //Second order in C2 
+	  if (ple->lensing_C2_order >= 2 ) {
+	    lensp += Cgl2[index_mu]*Cgl2[index_mu] * ( X_p022*X_p022*d22[index_mu][l] + X_242*X_220*d40[index_mu][l] );
+	    lensm += 0.5 * Cgl2[index_mu] * Cgl2[index_mu] * ( 2.*X_p022*X_p022*d2m2[index_mu][l] + X_220*X_220*d00[index_mu][l] + X_242*X_242*d4m4[index_mu][l] );
+	    if (ple->lensing_C2_order >= 3 ) {
+	      lensp += X_000*X_000 * x*x*x * (1/8.*d31[index_mu][l] + 1/24.*d5m1[index_mu][l]) ;//third order in C_2
+	      lensm += X_000*X_000 * x*x*x * (1/12.*d1m1[index_mu][l]+ 1/16.*d3m3[index_mu][l])  ;
+	      if (ple->lensing_C2_order >= 4 ) {
+		lensp += X_000*X_000 * x*x*x*x * (1/64.*d22[index_mu][l] + 1/48.*d40[index_mu][l] + 1/192.*d6m2[index_mu][l]) ;//fourth order in C_2
+		lensm += X_000*X_000 * x*x*x*x * (1/96.*d00[index_mu][l]+ 7/384.*d2m2[index_mu][l]+ 1/96.*d4m4[index_mu][l]);
+	      }
+	    }
+	  }
+	}
+	if (ple->lensing_C0_order == 1) {
+	  lensp += (2*X_022*X_p022*d22[index_mu][l]  + X_132*X_132*d33[index_mu][l] + X_121*X_121*d11[index_mu][l]) *Cgl[index_mu]; //first order in C_0 (no coupling to C_2 since very small)
+	  lensm += (2*X_022*X_p022*d2m2[index_mu][l]  + 2*X_121*X_132*d3m1[index_mu][l]) *Cgl[index_mu];
+	}
+	
+	//old implementation  
+	/*  
         lensp = ( X_022*X_022*d22[index_mu][l] +
                   2.*Cgl2[index_mu]*X_132*X_121*d31[index_mu][l] +
                   Cgl2[index_mu]*Cgl2[index_mu] *
@@ -670,7 +808,7 @@ int lensing_init(
                   0.5 * Cgl2[index_mu] * Cgl2[index_mu] *
                   ( 2.*X_p022*X_p022*d2m2[index_mu][l] +
                     X_220*X_220*d00[index_mu][l] +
-                    X_242*X_242*d4m4[index_mu][l] ) );
+                    X_242*X_242*d4m4[index_mu][l] ) );*/
         if (ppr->accurate_lensing == _FALSE_) {
           lensp -= d22[index_mu][l];
           lensm -= d2m2[index_mu][l];
@@ -1241,717 +1379,94 @@ int lensing_addback_cl_ee_bb(
 }
 
 /**
- * This routine computes the d00 term
+ * This routine computes the dm1m2 term when the difference between m1 and m2 is an even number and when m1 >=0 and abs(m2) < m1.
  *
  * @param mu     Input: Vector of cos(beta) values
  * @param num_mu Input: Number of cos(beta) values
  * @param lmax   Input: maximum multipole
- * @param d00    Input/output: Result is stored here
+ * @param dm1m2   Input/output: Result is stored here
+ * @param error_message            Output: error message  
  *
  * Wigner d-functions, computed by recurrence
  * actual recurrence on \f$ \sqrt{(2l+1)/2} d^l_{mm'} \f$ for stability
  * Formulae from Kostelec & Rockmore 2003
  **/
 
-int lensing_d00(
-                double * mu,
-                int num_mu,
-                int lmax,
-                double ** d00
-                ) {
-  double ll;
-  int index_mu, l;
-  double *fac1, *fac2, *fac3;
-  ErrorMsg erreur;
-
-  class_alloc(fac1,lmax*sizeof(double),erreur);
-  class_alloc(fac2,lmax*sizeof(double),erreur);
-  class_alloc(fac3,lmax*sizeof(double),erreur);
-  for (l=1; l<lmax; l++) {
-    ll = (double) l;
-    fac1[l] = sqrt((2*ll+3)/(2*ll+1))*(2*ll+1)/(ll+1);
-    fac2[l] = sqrt((2*ll+3)/(2*ll-1))*ll/(ll+1);
-    fac3[l] = sqrt(2./(2*ll+3));
-  }
-
-  class_setup_parallel();
-  for (index_mu=0;index_mu<num_mu;index_mu++) {
-    class_run_parallel(=,
-      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1);
-      int l;
-      dlm1=1.0/sqrt(2.); /* l=0 */
-      d00[index_mu][0]=dlm1*sqrt(2.);
-      dl=mu[index_mu] * sqrt(3./2.); /*l=1*/
-      d00[index_mu][1]=dl*sqrt(2./3.);
-      for (l=1;l<lmax;l++){
-        /* sqrt((2l+1)/2)*d00 recurrence, supposed to be more stable */
-        dlp1 = fac1[l]*mu[index_mu]*dl - fac2[l]*dlm1;
-        d00[index_mu][l+1] = dlp1 * fac3[l];
-        dlm1 = dl;
-        dl = dlp1;
-      }
-      return _SUCCESS_;
-    );
-  }
-  class_finish_parallel();
-  free(fac1); free(fac2); free(fac3);
-  return _SUCCESS_;
-}
-
-
-/**
- * This routine computes the d11 term
- *
- * @param mu     Input: Vector of cos(beta) values
- * @param num_mu Input: Number of cos(beta) values
- * @param lmax   Input: maximum multipole
- * @param d11    Input/output: Result is stored here
- *
- * Wigner d-functions, computed by recurrence
- * actual recurrence on \f$ \sqrt{(2l+1)/2} d^l_{mm'} \f$ for stability
- * Formulae from Kostelec & Rockmore 2003
- **/
-
-int lensing_d11(
-                double * mu,
-                int num_mu,
-                int lmax,
-                double ** d11
-                ) {
-  double ll;
-  int index_mu, l;
-  double *fac1, *fac2, *fac3, *fac4;
-  ErrorMsg erreur;
-  class_alloc(fac1,lmax*sizeof(double),erreur);
-  class_alloc(fac2,lmax*sizeof(double),erreur);
-  class_alloc(fac3,lmax*sizeof(double),erreur);
-  class_alloc(fac4,lmax*sizeof(double),erreur);
-  for (l=2;l<lmax;l++) {
-    ll = (double) l;
-    fac1[l] = sqrt((2*ll+3)/(2*ll+1))*(ll+1)*(2*ll+1)/(ll*(ll+2));
-    fac2[l] = 1.0/(ll*(ll+1.));
-    fac3[l] = sqrt((2*ll+3)/(2*ll-1))*(ll-1)*(ll+1)/(ll*(ll+2))*(ll+1)/ll;
-    fac4[l] = sqrt(2./(2*ll+3));
-  }
-
-  class_setup_parallel();
-  for (index_mu=0;index_mu<num_mu;index_mu++) {
-    class_run_parallel(=,
-      int l;
-      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1);
-      d11[index_mu][0]=0;
-      dlm1=(1.0+mu[index_mu])/2. * sqrt(3./2.); /*l=1*/
-      d11[index_mu][1]=dlm1 * sqrt(2./3.);
-      dl=(1.0+mu[index_mu])/2.*(2.0*mu[index_mu]-1.0) * sqrt(5./2.); /*l=2*/
-      d11[index_mu][2] = dl * sqrt(2./5.);
-      for (l=2;l<lmax;l++){
-        /* sqrt((2l+1)/2)*d11 recurrence, supposed to be more stable */
-        dlp1 = fac1[l]*(mu[index_mu]-fac2[l])*dl - fac3[l]*dlm1;
-        d11[index_mu][l+1] = dlp1 * fac4[l];
-        dlm1 = dl;
-        dl = dlp1;
-      }
-      return _SUCCESS_;
-    );
-  }
-  class_finish_parallel();
-  free(fac1); free(fac2); free(fac3); free(fac4);
-  return _SUCCESS_;
-}
-
-/**
- * This routine computes the d1m1 term
- *
- * @param mu     Input: Vector of cos(beta) values
- * @param num_mu Input: Number of cos(beta) values
- * @param lmax   Input: maximum multipole
- * @param d1m1    Input/output: Result is stored here
- *
- * Wigner d-functions, computed by recurrence
- * actual recurrence on \f$ \sqrt{(2l+1)/2} d^l_{mm'} \f$ for stability
- * Formulae from Kostelec & Rockmore 2003
- **/
-
-int lensing_d1m1(
+int lensing_dm1m2(
                  double * mu,
                  int num_mu,
                  int lmax,
-                 double ** d1m1
+		 int m1,
+		 int m2,
+                 double ** dm1m2,
+		 ErrorMsg erreur
                  ) {
   double ll;
-  int index_mu, l;
+  int index_mu, l, lmin, i ;
   double *fac1, *fac2, *fac3, *fac4;
-  ErrorMsg erreur;
+  double argsqrt=1.,pref;
   class_alloc(fac1,lmax*sizeof(double),erreur);
   class_alloc(fac2,lmax*sizeof(double),erreur);
   class_alloc(fac3,lmax*sizeof(double),erreur);
   class_alloc(fac4,lmax*sizeof(double),erreur);
-  for (l=2;l<lmax;l++) {
+
+  class_test(m1<0,erreur,"You should not use this function with m1<0 and you used m1 = %d \n",m1);
+  class_test(abs(m2)>m1,erreur,"You should not use this function with abs(m2)>m1 and you used m1 = %d m2 = %d \n",m1,m2);
+
+  lmin = m1;
+
+  /** d^j_{jm}(beta) when (j-m) is even is equal to sqrt((2j)!/(j-m)!/(j+m)!) * [(1+ cos(beta))/2]^((j+m)/2) *  [(1-cos(beta))/2]^((j-m)/2)
+      We compute the prefactor which is common, and then we compute the powers involving the cos later when initializing the recurrence. 
+   */
+  if (-m2==lmin) {
+    pref=1.;
+  }
+  else {
+    argsqrt=1.;
+    for (i=1;i<=lmin+m2;i++)
+      argsqrt /= i;
+    for (i=1;i<=lmin-m2;i++)
+      argsqrt /= i;
+    for (i=1;i<=2*lmin;i++)
+      argsqrt *= i;
+    pref = sqrt(argsqrt);
+  }
+  //printf("DEBUG m1=%d m2=%d argsqrt=%f \n",m1,m2,argsqrt);
+
+  //We must separate the case for d^l_00 for which lmin = 0
+  for (l=MAX(1,lmin);l<lmax;l++) {
     ll = (double) l;
-    fac1[l] = sqrt((2*ll+3)/(2*ll+1))*(ll+1)*(2*ll+1)/(ll*(ll+2));
-    fac2[l] = 1.0/(ll*(ll+1.));
-    fac3[l] = sqrt((2*ll+3)/(2*ll-1))*(ll-1)*(ll+1)/(ll*(ll+2))*(ll+1)/ll;
+    fac1[l] = sqrt((2*ll+3)*(2*ll+1)/((ll+1+m1)*(ll+1-m1)*(ll+1+m2)*(ll+1-m2)))*(ll+1);
+    fac2[l] = -m1*m2/(ll*(ll+1));
+    fac3[l] = sqrt((2*ll+3)/(2*ll-1)*(ll+m1)*(ll-m1)*(ll+m2)*(ll-m2)/((ll+1+m1)*(ll+1-m1)*(ll+1+m2)*(ll+1-m2)))*(ll+1)/ll;
     fac4[l] = sqrt(2./(2*ll+3));
   }
+  if (lmin == 0) {
+    fac1[0] = sqrt(3.);
+    fac2[0] = 0.;
+    fac3[0] = 0.;
+    fac4[0] = sqrt(2./3.);
+  }
+  
   class_setup_parallel();
   for (index_mu=0;index_mu<num_mu;index_mu++) {
     class_run_parallel(=,
       int l;
-      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1);
-      d1m1[index_mu][0]=0;
-      dlm1=(1.0-mu[index_mu])/2. * sqrt(3./2.); /*l=1*/
-      d1m1[index_mu][1]=dlm1 * sqrt(2./3.);
-      dl=(1.0-mu[index_mu])/2.*(2.0*mu[index_mu]+1.0) * sqrt(5./2.); /*l=2*/
-      d1m1[index_mu][2] = dl * sqrt(2./5.);
-      for (l=2;l<lmax;l++){
-        /* sqrt((2l+1)/2)*d1m1 recurrence, supposed to be more stable */
+      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1, i);
+      for (l=0;l<lmin;l++){
+	dm1m2[index_mu][l]=0;
+      }
+      dlm1=0.; /*l=lmin-1*/
+      dl=sqrt((2.*lmin+1)/2.) * pref; /*l=lmin TODO*/
+      for (i=1;i<=(lmin+m2)/2;i++)
+	dl *= (1.+ mu[index_mu])/2.; 
+      for (i=1;i<=(lmin-m2)/2;i++)
+	dl *= (1.- mu[index_mu])/2.;
+      dm1m2[index_mu][lmin] = dl * sqrt(2./(2.*lmin+1));
+      for (l=lmin;l<lmax;l++){
+        /* sqrt((2l+1)/2)*dm1m2 recurrence, supposed to be more stable */
         dlp1 = fac1[l]*(mu[index_mu]+fac2[l])*dl - fac3[l]*dlm1;
-        d1m1[index_mu][l+1] = dlp1 * fac4[l];
-        dlm1 = dl;
-        dl = dlp1;
-      }
-      return _SUCCESS_;
-    );
-  }
-  class_finish_parallel();
-  free(fac1); free(fac2); free(fac3); free(fac4);
-  return _SUCCESS_;
-}
-
-/**
- * This routine computes the d2m2 term
- *
- * @param mu     Input: Vector of cos(beta) values
- * @param num_mu Input: Number of cos(beta) values
- * @param lmax   Input: maximum multipole
- * @param d2m2   Input/output: Result is stored here
- *
- * Wigner d-functions, computed by recurrence
- * actual recurrence on \f$ \sqrt{(2l+1)/2} d^l_{mm'} \f$ for stability
- * Formulae from Kostelec & Rockmore 2003
- **/
-
-int lensing_d2m2(
-                 double * mu,
-                 int num_mu,
-                 int lmax,
-                 double ** d2m2
-                 ) {
-  double ll;
-  int index_mu, l;
-  double *fac1, *fac2, *fac3, *fac4;
-  ErrorMsg erreur;
-  class_alloc(fac1,lmax*sizeof(double),erreur);
-  class_alloc(fac2,lmax*sizeof(double),erreur);
-  class_alloc(fac3,lmax*sizeof(double),erreur);
-  class_alloc(fac4,lmax*sizeof(double),erreur);
-  for (l=2;l<lmax;l++) {
-    ll = (double) l;
-    fac1[l] = sqrt((2*ll+3)/(2*ll+1))*(ll+1)*(2*ll+1)/((ll-1)*(ll+3));
-    fac2[l] = 4.0/(ll*(ll+1));
-    fac3[l] = sqrt((2*ll+3)/(2*ll-1))*(ll-2)*(ll+2)/((ll-1)*(ll+3))*(ll+1)/ll;
-    fac4[l] = sqrt(2./(2*ll+3));
-  }
-
-  class_setup_parallel();
-  for (index_mu=0;index_mu<num_mu;index_mu++) {
-    class_run_parallel(=,
-      int l;
-      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1);
-      d2m2[index_mu][0]=0;
-      dlm1=0.; /*l=1*/
-      d2m2[index_mu][1]=0;
-      dl=(1.0-mu[index_mu])*(1.0-mu[index_mu])/4. * sqrt(5./2.); /*l=2*/
-      d2m2[index_mu][2] = dl * sqrt(2./5.);
-      for (l=2;l<lmax;l++){
-        /* sqrt((2l+1)/2)*d2m2 recurrence, supposed to be more stable */
-        dlp1 = fac1[l]*(mu[index_mu]+fac2[l])*dl - fac3[l]*dlm1;
-        d2m2[index_mu][l+1] = dlp1 * fac4[l];
-        dlm1 = dl;
-        dl = dlp1;
-      }
-      return _SUCCESS_;
-    );
-  }
-  class_finish_parallel();
-  free(fac1); free(fac2); free(fac3); free(fac4);
-  return _SUCCESS_;
-}
-
-/**
- * This routine computes the d22 term
- *
- * @param mu     Input: Vector of cos(beta) values
- * @param num_mu Input: Number of cos(beta) values
- * @param lmax   Input: maximum multipole
- * @param d22    Input/output: Result is stored here
- *
- * Wigner d-functions, computed by recurrence
- * actual recurrence on \f$ \sqrt{(2l+1)/2} d^l_{mm'} \f$ for stability
- * Formulae from Kostelec & Rockmore 2003
- **/
-
-int lensing_d22(
-                double * mu,
-                int num_mu,
-                int lmax,
-                double ** d22
-                ) {
-  double ll;
-  int index_mu, l;
-  double *fac1, *fac2, *fac3, *fac4;
-  ErrorMsg erreur;
-  class_alloc(fac1,lmax*sizeof(double),erreur);
-  class_alloc(fac2,lmax*sizeof(double),erreur);
-  class_alloc(fac3,lmax*sizeof(double),erreur);
-  class_alloc(fac4,lmax*sizeof(double),erreur);
-  for (l=2;l<lmax;l++) {
-    ll = (double) l;
-    fac1[l] = sqrt((2*ll+3)/(2*ll+1))*(ll+1)*(2*ll+1)/((ll-1)*(ll+3));
-    fac2[l] = 4.0/(ll*(ll+1));
-    fac3[l] = sqrt((2*ll+3)/(2*ll-1))*(ll-2)*(ll+2)/((ll-1)*(ll+3))*(ll+1)/ll;
-    fac4[l] = sqrt(2./(2*ll+3));
-  }
-
-  class_setup_parallel();
-  for (index_mu=0;index_mu<num_mu;index_mu++) {
-    class_run_parallel(=,
-      int l;
-      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1);
-      d22[index_mu][0]=0;
-      dlm1=0.; /*l=1*/
-      d22[index_mu][1]=0;
-      dl=(1.0+mu[index_mu])*(1.0+mu[index_mu])/4. * sqrt(5./2.); /*l=2*/
-      d22[index_mu][2] = dl * sqrt(2./5.);
-      for (l=2;l<lmax;l++){
-        /* sqrt((2l+1)/2)*d22 recurrence, supposed to be more stable */
-        dlp1 = fac1[l]*(mu[index_mu]-fac2[l])*dl - fac3[l]*dlm1;
-        d22[index_mu][l+1] = dlp1 * fac4[l];
-        dlm1 = dl;
-        dl = dlp1;
-      }
-      return _SUCCESS_;
-    );
-  }
-  class_finish_parallel();
-  free(fac1); free(fac2); free(fac3); free(fac4);
-  return _SUCCESS_;
-}
-
-/**
- * This routine computes the d20 term
- *
- * @param mu     Input: Vector of cos(beta) values
- * @param num_mu Input: Number of cos(beta) values
- * @param lmax   Input: maximum multipole
- * @param d20    Input/output: Result is stored here
- *
- * Wigner d-functions, computed by recurrence
- * actual recurrence on \f$ \sqrt{(2l+1)/2} d^l_{mm'} \f$ for stability
- * Formulae from Kostelec & Rockmore 2003
- **/
-
-int lensing_d20(
-                double * mu,
-                int num_mu,
-                int lmax,
-                double ** d20
-                ) {
-  double ll;
-  int index_mu, l;
-  double *fac1, *fac3, *fac4;
-  ErrorMsg erreur;
-  class_alloc(fac1,lmax*sizeof(double),erreur);
-  class_alloc(fac3,lmax*sizeof(double),erreur);
-  class_alloc(fac4,lmax*sizeof(double),erreur);
-  for (l=2;l<lmax;l++) {
-    ll = (double) l;
-    fac1[l] = sqrt((2*ll+3)*(2*ll+1)/((ll-1)*(ll+3)));
-    fac3[l] = sqrt((2*ll+3)*(ll-2)*(ll+2)/((2*ll-1)*(ll-1)*(ll+3)));
-    fac4[l] = sqrt(2./(2*ll+3));
-  }
-
-  class_setup_parallel();
-  for (index_mu=0;index_mu<num_mu;index_mu++) {
-    class_run_parallel(=,
-      int l;
-      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1);
-      d20[index_mu][0]=0;
-      dlm1=0.; /*l=1*/
-      d20[index_mu][1]=0;
-      dl=sqrt(15.)/4.*(1-mu[index_mu]*mu[index_mu]); /*l=2*/
-      d20[index_mu][2] = dl * sqrt(2./5.);
-      for (l=2;l<lmax;l++){
-        /* sqrt((2l+1)/2)*d22 recurrence, supposed to be more stable */
-        dlp1 = fac1[l]*mu[index_mu]*dl - fac3[l]*dlm1;
-        d20[index_mu][l+1] = dlp1 * fac4[l];
-        dlm1 = dl;
-        dl = dlp1;
-      }
-      return _SUCCESS_;
-    );
-  }
-  class_finish_parallel();
-  free(fac1); free(fac3); free(fac4);
-  return _SUCCESS_;
-}
-
-/**
- * This routine computes the d31 term
- *
- * @param mu     Input: Vector of cos(beta) values
- * @param num_mu Input: Number of cos(beta) values
- * @param lmax   Input: maximum multipole
- * @param d31    Input/output: Result is stored here
- *
- * Wigner d-functions, computed by recurrence
- * actual recurrence on \f$ \sqrt{(2l+1)/2} d^l_{mm'} \f$ for stability
- * Formulae from Kostelec & Rockmore 2003
- **/
-
-int lensing_d31(
-                double * mu,
-                int num_mu,
-                int lmax,
-                double ** d31
-                ) {
-  double ll;
-  int index_mu, l;
-  double *fac1, *fac2, *fac3, *fac4;
-  ErrorMsg erreur;
-  class_alloc(fac1,lmax*sizeof(double),erreur);
-  class_alloc(fac2,lmax*sizeof(double),erreur);
-  class_alloc(fac3,lmax*sizeof(double),erreur);
-  class_alloc(fac4,lmax*sizeof(double),erreur);
-  for (l=3;l<lmax;l++) {
-    ll = (double) l;
-    fac1[l] = sqrt((2*ll+3)*(2*ll+1)/((ll-2)*(ll+4)*ll*(ll+2))) * (ll+1);
-    fac2[l] = 3.0/(ll*(ll+1));
-    fac3[l] = sqrt((2*ll+3)/(2*ll-1)*(ll-3)*(ll+3)*(ll-1)*(ll+1)/((ll-2)*(ll+4)*ll*(ll+2)))*(ll+1)/ll;
-    fac4[l] = sqrt(2./(2*ll+3));
-  }
-
-  class_setup_parallel();
-  for (index_mu=0;index_mu<num_mu;index_mu++) {
-    class_run_parallel(=,
-      int l;
-      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1);
-      d31[index_mu][0]=0;
-      d31[index_mu][1]=0;
-      dlm1=0.; /*l=2*/
-      d31[index_mu][2]=0;
-      dl=sqrt(105./2.)*(1+mu[index_mu])*(1+mu[index_mu])*(1-mu[index_mu])/8.; /*l=3*/
-      d31[index_mu][3] = dl * sqrt(2./7.);
-      for (l=3;l<lmax;l++){
-        /* sqrt((2l+1)/2)*d22 recurrence, supposed to be more stable */
-        dlp1 = fac1[l]*(mu[index_mu]-fac2[l])*dl - fac3[l]*dlm1;
-        d31[index_mu][l+1] = dlp1 * fac4[l];
-        dlm1 = dl;
-        dl = dlp1;
-      }
-      return _SUCCESS_;
-    );
-  }
-  class_finish_parallel();
-  free(fac1); free(fac2); free(fac3); free(fac4);
-  return _SUCCESS_;
-}
-
-/**
- * This routine computes the d3m1 term
- *
- * @param mu     Input: Vector of cos(beta) values
- * @param num_mu Input: Number of cos(beta) values
- * @param lmax   Input: maximum multipole
- * @param d3m1   Input/output: Result is stored here
- *
- * Wigner d-functions, computed by recurrence
- * actual recurrence on \f$ \sqrt{(2l+1)/2} d^l_{mm'} \f$ for stability
- * Formulae from Kostelec & Rockmore 2003
- **/
-
-int lensing_d3m1(
-                 double * mu,
-                 int num_mu,
-                 int lmax,
-                 double ** d3m1
-                 ) {
-  double ll;
-  int index_mu, l;
-  double *fac1, *fac2, *fac3, *fac4;
-  ErrorMsg erreur;
-  class_alloc(fac1,lmax*sizeof(double),erreur);
-  class_alloc(fac2,lmax*sizeof(double),erreur);
-  class_alloc(fac3,lmax*sizeof(double),erreur);
-  class_alloc(fac4,lmax*sizeof(double),erreur);
-  for (l=3;l<lmax;l++) {
-    ll = (double) l;
-    fac1[l] = sqrt((2*ll+3)*(2*ll+1)/((ll-2)*(ll+4)*ll*(ll+2))) * (ll+1);
-    fac2[l] = 3.0/(ll*(ll+1));
-    fac3[l] = sqrt((2*ll+3)/(2*ll-1)*(ll-3)*(ll+3)*(ll-1)*(ll+1)/((ll-2)*(ll+4)*ll*(ll+2)))*(ll+1)/ll;
-    fac4[l] = sqrt(2./(2*ll+3));
-  }
-
-  class_setup_parallel();
-  for (index_mu=0;index_mu<num_mu;index_mu++) {
-    class_run_parallel(=,
-      int l;
-      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1);
-      d3m1[index_mu][0]=0;
-      d3m1[index_mu][1]=0;
-      dlm1=0.; /*l=2*/
-      d3m1[index_mu][2]=0;
-      dl=sqrt(105./2.)*(1+mu[index_mu])*(1-mu[index_mu])*(1-mu[index_mu])/8.; /*l=3*/
-      d3m1[index_mu][3] = dl * sqrt(2./7.);
-      for (l=3;l<lmax;l++){
-        /* sqrt((2l+1)/2)*d22 recurrence, supposed to be more stable */
-        dlp1 = fac1[l]*(mu[index_mu]+fac2[l])*dl - fac3[l]*dlm1;
-        d3m1[index_mu][l+1] = dlp1 * fac4[l];
-        dlm1 = dl;
-        dl = dlp1;
-      }
-      return _SUCCESS_;
-    );
-  }
-  class_finish_parallel();
-  free(fac1); free(fac2); free(fac3); free(fac4);
-  return _SUCCESS_;
-}
-
-/**
- * This routine computes the d3m3 term
- *
- * @param mu     Input: Vector of cos(beta) values
- * @param num_mu Input: Number of cos(beta) values
- * @param lmax   Input: maximum multipole
- * @param d3m3   Input/output: Result is stored here
- *
- * Wigner d-functions, computed by recurrence
- * actual recurrence on \f$ \sqrt{(2l+1)/2} d^l_{mm'} \f$ for stability
- * Formulae from Kostelec & Rockmore 2003
- **/
-
-int lensing_d3m3(
-                 double * mu,
-                 int num_mu,
-                 int lmax,
-                 double ** d3m3
-                 ) {
-  double ll;
-  int index_mu, l;
-  double *fac1, *fac2, *fac3, *fac4;
-  ErrorMsg erreur;
-  class_alloc(fac1,lmax*sizeof(double),erreur);
-  class_alloc(fac2,lmax*sizeof(double),erreur);
-  class_alloc(fac3,lmax*sizeof(double),erreur);
-  class_alloc(fac4,lmax*sizeof(double),erreur);
-  for (l=3;l<lmax;l++) {
-    ll = (double) l;
-    fac1[l] = sqrt((2*ll+3)*(2*ll+1))*(ll+1)/((ll-2)*(ll+4));
-    fac2[l] = 9.0/(ll*(ll+1));
-    fac3[l] = sqrt((2*ll+3)/(2*ll-1))*(ll-3)*(ll+3)*(l+1)/((ll-2)*(ll+4)*ll);
-    fac4[l] = sqrt(2./(2*ll+3));
-  }
-
-  class_setup_parallel();
-  for (index_mu=0;index_mu<num_mu;index_mu++) {
-    class_run_parallel(=,
-      int l;
-      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1);
-      d3m3[index_mu][0]=0;
-      d3m3[index_mu][1]=0;
-      dlm1=0.; /*l=2*/
-      d3m3[index_mu][2]=0;
-      dl=sqrt(7./2.)*(1-mu[index_mu])*(1-mu[index_mu])*(1-mu[index_mu])/8.; /*l=3*/
-      d3m3[index_mu][3] = dl * sqrt(2./7.);
-      for (l=3;l<lmax;l++){
-        /* sqrt((2l+1)/2)*d22 recurrence, supposed to be more stable */
-        dlp1 = fac1[l]*(mu[index_mu]+fac2[l])*dl - fac3[l]*dlm1;
-        d3m3[index_mu][l+1] = dlp1 * fac4[l];
-        dlm1 = dl;
-        dl = dlp1;
-      }
-      return _SUCCESS_;
-    );
-  }
-  class_finish_parallel();
-  free(fac1); free(fac2); free(fac3); free(fac4);
-  return _SUCCESS_;
-}
-
-/**
- * This routine computes the d40 term
- *
- * @param mu     Input: Vector of cos(beta) values
- * @param num_mu Input: Number of cos(beta) values
- * @param lmax   Input: maximum multipole
- * @param d40    Input/output: Result is stored here
- *
- * Wigner d-functions, computed by recurrence
- * actual recurrence on \f$ \sqrt{(2l+1)/2} d^l_{mm'} \f$ for stability
- * Formulae from Kostelec & Rockmore 2003
- **/
-
-int lensing_d40(
-                double * mu,
-                int num_mu,
-                int lmax,
-                double ** d40
-                ) {
-  double ll;
-  int index_mu, l;
-  double *fac1, *fac3, *fac4;
-  ErrorMsg erreur;
-  class_alloc(fac1,lmax*sizeof(double),erreur);
-  class_alloc(fac3,lmax*sizeof(double),erreur);
-  class_alloc(fac4,lmax*sizeof(double),erreur);
-  for (l=4;l<lmax;l++) {
-    ll = (double) l;
-    fac1[l] = sqrt((2*ll+3)*(2*ll+1)/((ll-3)*(ll+5)));
-    fac3[l] = sqrt((2*ll+3)*(ll-4)*(ll+4)/((2*ll-1)*(ll-3)*(ll+5)));
-    fac4[l] = sqrt(2./(2*ll+3));
-  }
-
-  class_setup_parallel();
-  for (index_mu=0;index_mu<num_mu;index_mu++) {
-    class_run_parallel(=,
-      int l;
-      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1);
-      d40[index_mu][0]=0;
-      d40[index_mu][1]=0;
-      d40[index_mu][2]=0;
-      dlm1=0.; /*l=3*/
-      d40[index_mu][3]=0;
-      dl=sqrt(315.)*(1+mu[index_mu])*(1+mu[index_mu])*(1-mu[index_mu])*(1-mu[index_mu])/16.; /*l=4*/
-      d40[index_mu][4] = dl * sqrt(2./9.);
-      for (l=4;l<lmax;l++){
-        /* sqrt((2l+1)/2)*d22 recurrence, supposed to be more stable */
-        dlp1 = fac1[l]*mu[index_mu]*dl - fac3[l]*dlm1;
-        d40[index_mu][l+1] = dlp1 * fac4[l];
-        dlm1 = dl;
-        dl = dlp1;
-      }
-      return _SUCCESS_;
-    );
-  }
-  class_finish_parallel();
-  free(fac1); free(fac3); free(fac4);
-  return _SUCCESS_;
-}
-
-/**
- * This routine computes the d4m2 term
- *
- * @param mu     Input: Vector of cos(beta) values
- * @param num_mu Input: Number of cos(beta) values
- * @param lmax   Input: maximum multipole
- * @param d4m2   Input/output: Result is stored here
- *
- * Wigner d-functions, computed by recurrence
- * actual recurrence on \f$ \sqrt{(2l+1)/2} d^l_{mm'} \f$ for stability
- * Formulae from Kostelec & Rockmore 2003
- **/
-
-int lensing_d4m2(
-                 double * mu,
-                 int num_mu,
-                 int lmax,
-                 double ** d4m2
-                 ) {
-  double ll;
-  int index_mu, l;
-  double *fac1, *fac2, *fac3, *fac4;
-  ErrorMsg erreur;
-  class_alloc(fac1,lmax*sizeof(double),erreur);
-  class_alloc(fac2,lmax*sizeof(double),erreur);
-  class_alloc(fac3,lmax*sizeof(double),erreur);
-  class_alloc(fac4,lmax*sizeof(double),erreur);
-  for (l=4;l<lmax;l++) {
-    ll = (double) l;
-    fac1[l] = sqrt((2*ll+3)*(2*ll+1)/((ll-3)*(ll+5)*(ll-1)*(ll+3))) * (ll+1.);
-    fac2[l] = 8./(ll*(ll+1));
-    fac3[l] = sqrt((2*ll+3)*(ll-4)*(ll+4)*(ll-2)*(ll+2)/((2*ll-1)*(ll-3)*(ll+5)*(ll-1)*(ll+3)))*(ll+1)/ll;
-    fac4[l] = sqrt(2./(2*ll+3));
-  }
-
-  class_setup_parallel();
-  for (index_mu=0;index_mu<num_mu;index_mu++) {
-    class_run_parallel(=,
-      int l;
-      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1);
-      d4m2[index_mu][0]=0;
-      d4m2[index_mu][1]=0;
-      d4m2[index_mu][2]=0;
-      dlm1=0.; /*l=3*/
-      d4m2[index_mu][3]=0;
-      dl=sqrt(126.)*(1+mu[index_mu])*(1-mu[index_mu])*(1-mu[index_mu])*(1-mu[index_mu])/16.; /*l=4*/
-      d4m2[index_mu][4] = dl * sqrt(2./9.);
-      for (l=4;l<lmax;l++){
-        /* sqrt((2l+1)/2)*d22 recurrence, supposed to be more stable */
-        dlp1 = fac1[l]*(mu[index_mu]+fac2[l])*dl - fac3[l]*dlm1;
-        d4m2[index_mu][l+1] = dlp1 * fac4[l];
-        dlm1 = dl;
-        dl = dlp1;
-      }
-      return _SUCCESS_;
-    );
-  }
-  class_finish_parallel();
-  free(fac1); free(fac2); free(fac3); free(fac4);
-  return _SUCCESS_;
-}
-
-/**
- * This routine computes the d4m4 term
- *
- * @param mu     Input: Vector of cos(beta) values
- * @param num_mu Input: Number of cos(beta) values
- * @param lmax   Input: maximum multipole
- * @param d4m4   Input/output: Result is stored here
- *
- * Wigner d-functions, computed by recurrence
- * actual recurrence on \f$ \sqrt{(2l+1)/2} d^l_{mm'} \f$ for stability
- * Formulae from Kostelec & Rockmore 2003
- **/
-
-int lensing_d4m4(
-                 double * mu,
-                 int num_mu,
-                 int lmax,
-                 double ** d4m4
-                 ) {
-  double ll;
-  int index_mu, l;
-  double *fac1, *fac2, *fac3, *fac4;
-  ErrorMsg erreur;
-  class_alloc(fac1,lmax*sizeof(double),erreur);
-  class_alloc(fac2,lmax*sizeof(double),erreur);
-  class_alloc(fac3,lmax*sizeof(double),erreur);
-  class_alloc(fac4,lmax*sizeof(double),erreur);
-  for (l=4;l<lmax;l++) {
-    ll = (double) l;
-    fac1[l] = sqrt((2*ll+3)*(2*ll+1))*(ll+1)/((ll-3)*(ll+5));
-    fac2[l] = 16./(ll*(ll+1));
-    fac3[l] = sqrt((2*ll+3)/(2*ll-1))*(ll-4)*(ll+4)*(ll+1)/((ll-3)*(ll+5)*ll);
-    fac4[l] = sqrt(2./(2*ll+3));
-  }
-
-  class_setup_parallel();
-  for (index_mu=0;index_mu<num_mu;index_mu++) {
-    class_run_parallel(=,
-      int l;
-      double declare_list_of_variables_inside_parallel_region(dlm1, dl, dlp1);
-      d4m4[index_mu][0]=0;
-      d4m4[index_mu][1]=0;
-      d4m4[index_mu][2]=0;
-      dlm1=0.; /*l=3*/
-      d4m4[index_mu][3]=0;
-      dl=sqrt(9./2.)*(1-mu[index_mu])*(1-mu[index_mu])*(1-mu[index_mu])*(1-mu[index_mu])/16.; /*l=4*/
-      d4m4[index_mu][4] = dl * sqrt(2./9.);
-      for (l=4;l<lmax;l++){
-        /* sqrt((2l+1)/2)*d22 recurrence, supposed to be more stable */
-        dlp1 = fac1[l]*(mu[index_mu]+fac2[l])*dl - fac3[l]*dlm1;
-        d4m4[index_mu][l+1] = dlp1 * fac4[l];
+        dm1m2[index_mu][l+1] = dlp1 * fac4[l];
         dlm1 = dl;
         dl = dlp1;
       }

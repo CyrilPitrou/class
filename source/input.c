@@ -5103,6 +5103,22 @@ int input_read_parameters_lensing(struct file_content * pfc,
 
   class_read_flag("want_lcmb_full_limber",ppt->want_lcmb_full_limber);
 
+  /** 4) Lensing orders */
+  /* Read */
+
+  class_read_int("lensing_C2_order",ple->lensing_C2_order);
+
+  class_read_int("lensing_C0_order",ple->lensing_C0_order);
+
+  /* Consistency checks */
+  class_test(((ple->lensing_C0_order > 1)||(ple->lensing_C0_order < 0)),
+	     errmsg,
+	     "The order of the monopole of lensing correlation C0 should be either 0 or 1 but you passed  C0 = %d.", ple->lensing_C0_order);
+
+  class_test(((ple->lensing_C2_order > 4)||(ple->lensing_C2_order < 0)),
+	     errmsg,
+	     "The order of the quadrupole of lensing correlation C2 should be either 0, 1, 2, 3 or 4 but you passed  C2 = %d.", ple->lensing_C2_order);
+  
   return _SUCCESS_;
 
 }
@@ -6150,6 +6166,9 @@ int input_default_params(struct background *pba,
 
   /** 1) Lensing */
   ple->has_lensed_cls = _FALSE_;
+  /** lensing orders */
+  ple->lensing_C0_order = 0;
+  ple->lensing_C2_order = 2;
 
   /** 2) Should the lensed spectra be rescaled? */
   ptr->lcmb_rescale=1.;

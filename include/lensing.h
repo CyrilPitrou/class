@@ -6,6 +6,14 @@
 #include "harmonic.h"
 
 /**
+ * various types of lensing methods
+ * The digit behind q is the order of C_2 (quadrupole of lensing correlation)
+ * The order behind m is the order of C_0 (monopole of lensing correlation)
+ * All sky is the method of 0502425. Simplified all sky is the method of 0601594
+ */
+
+
+/**
  * Structure containing everything about lensed spectra that other modules need to know.
  *
  * Once initialized by lensing_init(), contains a table of all lensed
@@ -91,6 +99,10 @@ struct lensing {
 
   short is_allocated; /**< flag is set to true if allocated */
 
+  int lensing_C2_order ; /**< lensing order of the quadrupolar contribution to the deflection correlation (called C^lg_2 in some papers) */
+
+  int lensing_C0_order ; /**< lensing order of the quadrupolar contribution to the deflection correlation (called C^lg_0 in some papers) */
+
   //@}
 };
 
@@ -169,7 +181,7 @@ extern "C" {
                                );
 
 
-  int lensing_X000(
+  /**int lensing_X000(
                    double * mu,
                    int num_mu,
                    int lmax,
@@ -231,92 +243,18 @@ extern "C" {
                    int lmax,
                    double * sigma2,
                    double ** X242
-                   );
+                   );*/
 
-  int lensing_d00(
-                  double * mu,
-                  int num_mu,
-                  int lmax,
-                  double ** d00
-                  );
-
-  int lensing_d11(
-                  double * mu,
-                  int num_mu,
-                  int lmax,
-                  double ** d11
-                  );
-
-  int lensing_d1m1(
+  int lensing_dm1m2(
                    double * mu,
                    int num_mu,
                    int lmax,
-                   double ** d1m1
+		   int m1,
+		   int m2,
+                   double ** dm1m2,
+		   ErrorMsg erreur
                    );
-
-  int lensing_d2m2(
-                   double * mu,
-                   int num_mu,
-                   int lmax,
-                   double ** d2m2
-                   );
-
-  int lensing_d22(
-                  double * mu,
-                  int num_mu,
-                  int lmax,
-                  double ** d22
-                  );
-
-  int lensing_d20(
-                  double * mu,
-                  int num_mu,
-                  int lmax,
-                  double ** d20
-                  );
-
-  int lensing_d31(
-                  double * mu,
-                  int num_mu,
-                  int lmax,
-                  double ** d3m1
-                  );
-
-  int lensing_d3m1(
-                   double * mu,
-                   int num_mu,
-                   int lmax,
-                   double ** d3m1
-                   );
-
-  int lensing_d3m3(
-                   double * mu,
-                   int num_mu,
-                   int lmax,
-                   double ** d3m3
-                   );
-
-  int lensing_d40(
-                  double * mu,
-                  int num_mu,
-                  int lmax,
-                  double ** d40
-                  );
-
-  int lensing_d4m2(
-                   double * mu,
-                   int num_mu,
-                   int lmax,
-                   double ** d4m2
-                   );
-
-  int lensing_d4m4(
-                   double * mu,
-                   int num_mu,
-                   int lmax,
-                   double ** d4m4
-                   );
-
+  
 #ifdef __cplusplus
 }
 #endif
