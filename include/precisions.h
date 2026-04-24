@@ -584,10 +584,14 @@ class_precision_parameter(mmax_for_p1h_integral,double,1.e18)
  * Lensing precision parameters
  */
 
-class_precision_parameter(accurate_lensing,int,_FALSE_) /**< switch between Gauss-Legendre quadrature integration and simple quadrature on a subdomain of angles */
-class_precision_parameter(num_mu_minus_lmax,int,70) /**< difference between num_mu and l_max, increase for more precision */
-class_precision_parameter(delta_l_max,int,500)/**< difference between l_max in unlensed and lensed spectra */
+class_precision_parameter(accurate_lensing,int,_TRUE_) /**< switch between Gauss-Legendre quadrature integration and simple quadrature on a subdomain of angles. Accurate method is needed when l_max > 2000, especially for B modes. */
+class_precision_parameter(num_mu_minus_lmax,int,0) /**< difference between num_mu and l_max. Increase for more precision but with a sufficient delta_l_max this is not really needed. */
+class_precision_parameter(delta_l_max,int,1000)/**< difference between l_max in unlensed and lensed spectra.
+						  A good rule of thumb is to pick delta_lmax ~ 0.5 * l_max which works fine for TT TE and EE spectra up to l_max = 8000 (0.1% precision)
+						  However for BB spectra due to lensing of scalar modes, one should make sure that delta_l_max is at least 2000 otherwise we can have 10% errors.
+						 */
 class_precision_parameter(tol_gauss_legendre,double,ppr->smallest_allowed_variation) /**< tolerance with which quadrature points are found: must be very small for an accurate integration (if not entered manually, set automatically to match machine precision) */
+class_precision_parameter(non_accurate_lensing_boundary,int,16) /**< Instead of integrating beta (the separation angle) from 0 to Pi we integrate on [0, Pi/non_accurate_lensing_boundary]. Recommended value is non_accurate_lensing_boundary=16 (see section III.B.3 of astro-ph/0502425) but for large lmax (much larger than 2000) one should rather use 8 or even 1, at the price of slowing the integrations. This is because this truncation introduces artificial ringing on small scales. In that case the accurate method which uses a Gauss-Legendre quadrature is a better method as it optimizes the number of points needed.*/
 
 /*
  * Spectral distortions precision parameters

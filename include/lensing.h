@@ -99,9 +99,9 @@ struct lensing {
 
   short is_allocated; /**< flag is set to true if allocated */
 
-  int lensing_C2_order ; /**< lensing order of the quadrupolar contribution to the deflection correlation (called C^lg_2 in some papers) */
+  int lensing_C2_order ; /**< lensing order of the quadrupolar contribution to the deflection correlation (called Cgl_2 in 0502425). Default is 2, that is up to Cgl_2^2. */
 
-  int lensing_C0_order ; /**< lensing order of the quadrupolar contribution to the deflection correlation (called C^lg_0 in some papers) */
+  int lensing_C0_order ; /**< lensing order of the monopolar contribution to the deflection correlation (called Cgl_0 in 0502425). Default is 0, that is the effect of Cgl_0 is ignored. */
 
   //@}
 };
@@ -179,71 +179,6 @@ extern "C" {
                                double *cl_ee,
                                double *cl_bb
                                );
-
-
-  /**int lensing_X000(
-                   double * mu,
-                   int num_mu,
-                   int lmax,
-                   double * sigma2,
-                   double ** X000
-                   );
-
-  int lensing_Xp000(
-                    double * mu,
-                    int num_mu,
-                    int lmax,
-                    double * sigma2,
-                    double ** Xp000
-                    );
-
-  int lensing_X220(
-                   double * mu,
-                   int num_mu,
-                   int lmax,
-                   double * sigma2,
-                   double ** X220
-                   );
-
-  int lensing_X022(
-                   double * mu,
-                   int num_mu,
-                   int lmax,
-                   double * sigma2,
-                   double ** X022
-                   );
-
-  int lensing_Xp022(
-                    double * mu,
-                    int num_mu,
-                    int lmax,
-                    double * sigma2,
-                    double ** Xp022
-                    );
-
-  int lensing_X121(
-                   double * mu,
-                   int num_mu,
-                   int lmax,
-                   double * sigma2,
-                   double ** X121
-                   );
-
-  int lensing_X132(
-                   double * mu,
-                   int num_mu,
-                   int lmax,
-                   double * sigma2,
-                   double ** X132
-                   );
-
-  int lensing_X242(
-                   double * mu,
-                   int num_mu,
-                   int lmax,
-                   double * sigma2,
-                   double ** X242
-                   );*/
 
   int lensing_dm1m2(
                    double * mu,
