@@ -434,6 +434,11 @@ cdef extern from "class.h":
         int index_pk_cluster
         ErrorMsg error_message
 
+    cdef struct magnetic:
+        short is_allocated    
+        double sigma1	
+        ErrorMsg error_message
+
     cdef struct file_content:
         char * filename
         int size
@@ -449,6 +454,7 @@ cdef extern from "class.h":
     void thermodynamics_free(void*)
     void background_free(void*)
     void fourier_free(void*)
+    void magnetic_free(void*)	
     void distortions_free(void*)
 
     cdef int _FAILURE_
@@ -461,12 +467,13 @@ cdef extern from "class.h":
     cdef double _eV_
 
     int input_read_from_file(void*, void*, void*, void*, void*, void*, void*, void*, void*,
-        void*, void*, void*, char*)
+        void*, void*, void*, void*, char*)
     int background_init(void*,void*)
     int thermodynamics_init(void*,void*,void*)
     int perturbations_init(void*,void*,void*,void*)
     int primordial_init(void*,void*,void*)
     int fourier_init(void*,void*,void*,void*,void*,void*)
+    int magnetic_init(void*,void*,void*,void*,void*,void*)
     int transfer_init(void*,void*,void*,void*,void*,void*)
     int harmonic_init(void*,void*,void*,void*,void*,void*,void*)
     int lensing_init(void*,void*,void*,void*,void*)

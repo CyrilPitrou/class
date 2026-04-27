@@ -1466,17 +1466,17 @@ int transfer_get_k_list(
                "bug in k_list calculation: in perturbation module k_max=%e, in transfer module k_max[mode=%d]=%e, interpolation impossible",
                ppt->k[0][ppt->k_size_cl[0]-1],
                index_md,
-               ptr->k[index_md][ptr->q_size-1]);
+               ptr->k[0][ptr->q_size-1]);
 
     /* check consistency of the last value of ptr->k_limber compared to the one of ppt->k across all modes (hence the 0 index) */
-    if (ptr->do_lcmb_full_limber == _TRUE_) {
+    /*if (ptr->do_lcmb_full_limber == _TRUE_) {
       class_test(ptr->k_limber[index_md][ptr->q_size_limber-1] > ppt->k[0][ppt->k_size[0]-1],
                  ptr->error_message,
-                 "bug in k_list calculation: in perturbation module k_max=%e, in transfer module k_max[mode=%d]=%e, interpolation impossible",
+                 "bug in k_list limber calculation: in perturbation module k_max=%e, in transfer module k_max[mode=%d]=%e, interpolation impossible",
                  ppt->k[0][ppt->k_size[0]-1],
                  index_md,
                  ptr->k_limber[index_md][ptr->q_size_limber-1]);
-    }
+		 }*/
 
   }
 

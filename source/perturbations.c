@@ -526,6 +526,8 @@ int perturbations_output_data(
 	  class_store_double(dataptr,tk[ppt->index_tp_theta_b],ppt->has_source_vector_theta_b,storeidx);
 	  class_store_double(dataptr,tk[ppt->index_tp_theta_ur],ppt->has_source_vector_theta_ur,storeidx);
 	}
+	if (ppt->has_magnetic_transfer == _TRUE_)
+	  class_store_double(dataptr,tk[ppt->index_tp_magnetic],ppt->has_magnetic_transfer,storeidx);
       }
 
     }
@@ -609,6 +611,7 @@ int perturbations_output_titles(
 	class_store_columntitle(titles,"t_tot",_TRUE_);
       }
     }
+
     else if (output_format == camb_format) {
       class_store_columntitle(titles,"k (h/Mpc)",_TRUE_);
       class_store_columntitle(titles,"-T_cdm/k2",_TRUE_);
@@ -627,6 +630,8 @@ int perturbations_output_titles(
       class_store_columntitle(titles,"t_b",ppt->has_source_vector_theta_b);
       class_store_columntitle(titles,"t_ur",ppt->has_source_vector_theta_ur);
     }
+    if (ppt->has_magnetic_transfer == _TRUE_)
+      class_store_columntitle(titles,"B (mag. field)",ppt->has_magnetic_transfer);
   }
 
   return _SUCCESS_;
@@ -688,6 +693,10 @@ int perturbations_output_firstline_and_ic_suffix(
     if ((ppt->has_oct_v == _TRUE_) && (index_ic == ppt->index_ic_oct_v)) {
       strcpy(ic_suffix,"oct");
       strcpy(first_line,"for neutrino vector octupole (OCT_V)  (normalized such that metric vector mode is 1 initially) ");
+    }
+    if ((ppt->has_smd_v == _TRUE_) && (index_ic == ppt->index_ic_smd_v)) {
+      strcpy(ic_suffix,"smd");
+      strcpy(first_line,"for sourced vector mode (SMD_V)  (normalized such that metric vector mode is 1 initially) ");
     }
   }
   
@@ -753,13 +762,13 @@ int perturbations_init(
       if (ppt->perturbations_verbose > 1)
         printf("Computing sources (optimal Boltzmann hierarchy)\n");
       else if (ppt->perturbations_verbose == 1)
-        printf("Computing sources\n");
+        fprintf(stdout,"Computing sources\n");
       break;
     case tam:
       if (ppt->perturbations_verbose > 1)
         printf("Computing sources (total angular momentum method)\n");
       else if (ppt->perturbations_verbose == 1)
-        printf("Computing sources\n");
+        fprintf(stdout,"Computing sources\n");
       break;
     default:
       class_stop(ppt->error_message,"Un-identified hierarchy, should be one of optimal or tam");
@@ -1523,17 +1532,16 @@ int perturbations_indices(
 
       /** - --> source flags and indices, for sources that are specific to vectors */
       if (ppt->has_vector_velocity_transfers == _TRUE_) {
-        if (pba->has_ur == _TRUE_) {
+        if (pba->has_ur == _TRUE_) 
 	  ppt->has_source_vector_theta_ur = _TRUE_;
-	}
 	ppt->has_source_vector_theta_b = _TRUE_;
 	ppt->has_source_vector_theta_g = _TRUE_;
       }
 
-      
       index_type = index_type_common;
       /** We do not use the same tp_t1 index as for scalars, hence we define tp_t1_v */
       class_define_index(ppt->index_tp_t1_v,           ppt->has_source_t,index_type,1);
+      class_define_index(ppt->index_tp_magnetic,       ppt->has_magnetic_transfer,index_type,1);
       class_define_index(ppt->index_tp_vector_theta_g, ppt->has_source_vector_theta_g,index_type,1);
       class_define_index(ppt->index_tp_vector_theta_b, ppt->has_source_vector_theta_b,index_type,1);
       class_define_index(ppt->index_tp_vector_theta_ur,ppt->has_source_vector_theta_ur,index_type,1);
@@ -1551,6 +1559,7 @@ int perturbations_indices(
       index_ic = 0;
       class_define_index(ppt->index_ic_iso_v, ppt->has_iso_v, index_ic,1);
       class_define_index(ppt->index_ic_oct_v, ppt->has_oct_v, index_ic,1);
+      class_define_index(ppt->index_ic_smd_v, ppt->has_smd_v, index_ic,1);
       ppt->ic_size[index_md] = index_ic;
 
     }
@@ -2193,7 +2202,7 @@ int perturbations_get_k_list(
         /pba->conformal_age/pth->angular_rescaling;
       k_max_cl[ppt->index_md_scalars] = k_max_cmb[ppt->index_md_scalars];
       k_max     = k_max_cmb[ppt->index_md_scalars];
-
+      
       /* find k_max_cl[ppt->index_md_scalars] : */
 
       /* if we need density/lensing Cl's, we must impose a stronger condition,
@@ -2391,7 +2400,11 @@ int perturbations_get_k_list(
 
     /** - --> find k_max (as well as k_max_cmb[ppt->index_md_vectors], k_max_cl[ppt->index_md_vectors]) */
 
-    k_rec = 2. * _PI_ / pth->rs_rec; /* comoving scale corresponding to sound horizon at recombination */
+    if (ppt->has_magnetic_transfer == _TRUE_)
+      k_rec=0.2; //For magnetic field it is better to sample correctly until this scale which is larger (that is smaler wavelength) than k_rec.
+    else
+      k_rec = 2. * _PI_ / pth->rs_rec; /* comoving scale corresponding to sound horizon at recombination */
+
     k_max_cmb[ppt->index_md_vectors] = k_min;
     k_max_cl[ppt->index_md_vectors] = k_min;
     k_max = k_min;
@@ -2411,6 +2424,9 @@ int perturbations_get_k_list(
       k_max     = k_max_cmb[ppt->index_md_vectors];
     }
 
+    //This should be put correctly and proprement in the input.c file.
+    if (ppt->has_magnetic_transfer == _TRUE_)
+      k_max = MAX(k_max,ppt->k_max_for_B);
 
     /** - --> test that result for k_min, k_max make sense */
 
@@ -2438,8 +2454,14 @@ int perturbations_get_k_list(
 
     /* allocate array with, for the moment, the largest possible size */
     class_alloc(ppt->k[ppt->index_md_vectors],
+                  ((int)((k_max_cmb[ppt->index_md_vectors]-k_min)/k_rec/MIN(ppr->k_step_super,ppr->k_step_sub))+
+                   (int)(ppr->k_per_decade_for_pk*log(k_max/k_min)/log(10.))+3)
+                  *sizeof(double),ppt->error_message);
+
+    
+    /*class_alloc(ppt->k[ppt->index_md_vectors],
                 ((int)((k_max_cmb[ppt->index_md_vectors]-k_min)/k_rec/MIN(ppr->k_step_super,ppr->k_step_sub))+1)
-                *sizeof(double),ppt->error_message);
+                *sizeof(double),ppt->error_message);*/
 
     /* first value */
 
@@ -2459,7 +2481,7 @@ int perturbations_get_k_list(
 
       step = (ppr->k_step_super
               + 0.5 * (tanh((k-k_rec)/k_rec/ppr->k_step_transition)+1.)
-              * (ppr->k_step_sub-ppr->k_step_super)) * k_rec;
+              * (ppr->k_step_sub-ppr->k_step_super)) * k_rec;// WARNING I have added a factor 10 here !
 
       /* there is one other thing to take into account in the step
          size. There are two other characteristic scales that matter for
@@ -2482,7 +2504,7 @@ int perturbations_get_k_list(
 
       k += step;
 
-      class_test(k <= ppt->k[ppt->index_md_scalars][index_k-1],
+      class_test(k <= ppt->k[ppt->index_md_vectors][index_k-1],
                  ppt->error_message,
                  "consecutive values of k should differ and should be in growing order");
 
@@ -2493,8 +2515,18 @@ int perturbations_get_k_list(
 
     ppt->k_size_cmb[ppt->index_md_vectors] = index_k;
     ppt->k_size_cl[ppt->index_md_vectors] = index_k;
-    ppt->k_size[ppt->index_md_vectors] = index_k;
 
+    while (k < k_max) {
+      k *= pow(10.,1./(ppr->k_per_decade_for_pk));
+      
+      ppt->k[ppt->index_md_vectors][index_k] = k;
+
+      index_k++;
+
+    }
+
+    ppt->k_size[ppt->index_md_vectors] = index_k;
+    
     class_realloc(ppt->k[ppt->index_md_vectors],
                   ppt->k_size[ppt->index_md_vectors]*sizeof(double),
                   ppt->error_message);
@@ -3316,6 +3348,13 @@ int perturbations_solve(
 	 */
 	if (om*tau_mid > ppr->start_small_omega_tau)
 	  is_early_enough = _FALSE_;
+
+	/* In the case of Sourced mode, we completely overwrite all these conditions and start at a given redshift. Typically not so large. Like z = 10^4 */
+	if (ppt->has_smd_v == _TRUE_) {
+	  is_early_enough = _TRUE_;
+	  if ((1./ppw->pvecback[pba->index_bg_a]-1.) <= ppt->smd_zstart)//Should put an option for the choice of this redshift
+	    is_early_enough = _FALSE_;
+	}
       }
     }
 
@@ -3329,6 +3368,7 @@ int perturbations_solve(
   }
 
   tau = tau_mid;
+  //printf("DEBUG tau_mid = %e and a = %e \n",tau,ppw->pvecback[pba->index_bg_a]);
 
   /** - find the number of intervals over which approximation scheme is constant */
 
@@ -3648,6 +3688,9 @@ int perturbations_prepare_k_output(struct background * pba,
 	  break;
       }
 
+      if (ppt->has_magnetic_transfer == _TRUE_)
+	class_store_columntitle(ppt->vector_titles,"B (mag field)",_TRUE_);
+      
       ppt->number_of_vector_titles =
         get_number_of_titles(ppt->vector_titles);
     }
@@ -4425,6 +4468,10 @@ int perturbations_vector_init(
     */
     class_define_index(ppv->index_pt_V,_TRUE_,index_pt,1);
 
+    /** Magnetic field transfer function */
+
+    class_define_index(ppv->index_pt_magnetic,ppt->has_magnetic_transfer,index_pt,1);
+    
   }
   if (_tensors_) {
 
@@ -5633,6 +5680,7 @@ int perturbations_vector_init(
       In this section dedicated to vector perturbations, R is defined by 2.33 of 2410.03612
       and it matches the definition by A. Lewis astro-ph/0403583 or 67 in astro-ph/9702170
       */
+
       R = 3./4. * ppw->pvecback[pba->index_bg_rho_b]/ppw->pvecback[pba->index_bg_rho_g];
 
       /** - ---> (b.1.) check that the change of approximation scheme makes
@@ -5652,6 +5700,9 @@ int perturbations_vector_init(
 
       ppv->y[ppv->index_pt_V] =
 	ppw->pv->y[ppw->pv->index_pt_V];
+
+      if (ppt->has_magnetic_transfer == _TRUE_)
+	ppv->y[ppv->index_pt_magnetic] = ppw->pv->y[ppw->pv->index_pt_magnetic];
 
       if (ppt->evolve_vector_ncdm == _TRUE_) {
 	index_pt = 0;
@@ -5684,6 +5735,7 @@ int perturbations_vector_init(
 	 */
 	ppv->y[ppv->index_pt_theta_b] =
 	  ppw->pv->y[ppw->pv->index_pt_theta_b] + 1./(1.+R)*ppw->tca_slip_vector;
+
 	switch (ppt->hierarchy) {
         case optimal://Needs a check numerically
           ppv->y[ppv->index_pt_l0_g] = -2.*_SQRT2_*(ppw->pv->y[ppw->pv->index_pt_theta_b]-R/(1.+R)*ppw->tca_slip_vector);
@@ -5775,6 +5827,7 @@ int perturbations_vector_init(
 	      ppw->pv->y[ppw->pv->index_pt_l2_ur+l-2];
 	  break;
 	}
+
       }
 
       if (ppt->evolve_tensor_ncdm == _TRUE_){
@@ -5915,10 +5968,11 @@ int perturbations_initial_conditions(struct precision * ppr,
   double s2_squared, ssqrt3;
   //For vector initial conditions :
   double Phi0,R,om,cH;
-  double V_init, theta_b, l1_ur, l2_ur, l4_ur;
+  double V_init=0., theta_b=0., l1_ur=0., l2_ur=0., l4_ur=0., v_f_synch=0.;
   //for tensor initial conditions
   double k2, q2, h_corr_2;
 
+  
   class_call(background_at_tau(pba,
                                tau,
                                normal_info,
@@ -6505,7 +6559,7 @@ int perturbations_initial_conditions(struct precision * ppr,
     //The definition of R is different from scalar perturbations. Here it is 2.33 of 2410.03612, but also what is used in astro-ph/0403583, astro-ph/9702170 and astro-ph/9709066.
     R = 3./4. * rho_b/rho_g;
 
-    ssqrt3 = 1.-2.*pba->K/k/k;
+    ssqrt3 = sqrt(1.-2.*pba->K/k/k);
 
     /* omega = Omega_m(t_i) a(t_i) H(t_i) / sqrt(Omega_r(t_i))
        = Omega_m(t_0) a(t_0) H(t_0) / sqrt(Omega_r(t_0)) assuming rho_m in a-3 and rho_r in a^-4
@@ -6554,7 +6608,21 @@ int perturbations_initial_conditions(struct precision * ppr,
       if ( !((pba->K>0)&&(k*k -14.*pba->K<=0)) )//l=4 is not excited for small k corresponding to q/sqrt(K) = 4, since in that case l_max = 3.
 	l4_ur = Phi0*(5.*rho_r+4.*rho_nu)/rho_nu /8.* _SQRT5_/_SQRT2_ *sqrt((k*k -2.*pba->K) * (k*k -14.*pba->K) / (k*k -7.*pba->K))*tau;//C. Pitrou private notebook
     }
-
+    //Initial conditions in the sourced mode case. Note that in full generality one also needs to specify at which early time this condition is set since Phi decays after the IC.
+    if ((ppt->has_smd_v == _TRUE_) && (index_ic == ppt->index_ic_smd_v)) {
+      Phi0 = pow((1.+1e4)*a,-2); //(aref/a)^2 where the ref is at z=1e4
+      //printf("DEBUG we set the smd conditions\n");
+      V_init = Phi0;
+      if (ppt->gauge == synchronous) { 
+	l1_ur = 0.;
+	theta_b = 0.;
+      }
+      if (ppt->gauge == newtonian) { 
+	l1_ur = V_init;
+	theta_b = V_init;
+      }
+    }
+    
     ppw->pv->y[ppw->pv->index_pt_V] = V_init;
     ppw->pv->y[ppw->pv->index_pt_theta_b] = theta_b;
 
@@ -6591,6 +6659,14 @@ int perturbations_initial_conditions(struct precision * ppr,
       }
     }
 
+    if (ppt->gauge == newtonian)
+      v_f_synch = theta_b - V_init;
+    else
+      v_f_synch = theta_b;
+
+    if (ppt->has_magnetic_transfer == _TRUE_) {
+      ppw->pv->y[ppw->pv->index_pt_magnetic] = -_inv_Mpc2_Gauss_ * sqrt(k*k + 2.*pba->K) *a*tau/(1.+R)*(a_prime_over_a*v_f_synch) ;//TODO put correct initial condition
+    }
   }
 
   /** --> For tensors */
@@ -6723,7 +6799,6 @@ int perturbations_initial_conditions(struct precision * ppr,
       }
     }
 
-    /**
         Corrections which are of order (k*tau)^2 for h, but order (k*tau) for h' (Credits C. Pitrou v3.3.0)
         Not including them results in 0.2-0.3% differences, which remain till final values and
         are not washed away after initial transition to the correct attractor. They read:
@@ -8368,8 +8443,8 @@ int perturbations_sources(
   double dkappa, ddkappa, exp_m_kappa, g, g_prime;
   double theta_idm = 0., theta_idm_prime = 0.;
   double dmu_idm_g = 0., ddmu_idm_g = 0., exp_mu_idm_g = 0.;
-
   double ssqrt3, R;
+
   /** - rename structure fields (just to avoid heavy notations) */
 
   pppaw = (struct perturbations_parameters_and_workspace *)parameters_and_workspace;
@@ -9015,8 +9090,10 @@ int perturbations_sources(
 	_set_source_(ppt->index_tp_t1_v) = ppw->pvecmetric[ppw->index_mt_V_prime]*pvecthermo[pth->index_th_exp_m_kappa]
 	  +pvecthermo[pth->index_th_g]*theta_b;//l=1 and m=1 source
 	_set_source_(ppt->index_tp_t2) = pvecthermo[pth->index_th_g] * P;//l=2 and m=1 source
+
       }
     }
+
     if (ppt->has_source_p == _TRUE_) {
       //Note that the correct source should have a minus sign, but we add this historical sign 'mistake' as for tensor modes.
       //Do we really want this ?
@@ -9050,6 +9127,10 @@ int perturbations_sources(
       }
       _set_source_(ppt->index_tp_vector_theta_ur) = theta_ur;
     }
+
+    if (ppt->has_magnetic_transfer == _TRUE_)
+      _set_source_(ppt->index_tp_magnetic) = y[ppw->pv->index_pt_magnetic];
+
   }
 
   /** - for tensors */
@@ -9747,7 +9828,7 @@ int perturbations_print_variables(double tau,
         break;
       }
       theta_b = y[ppw->pv->index_pt_theta_b];
-    }
+    }      
 
     if (ppw->approx[ppw->index_ap_rsa]==(int)rsa_off) {
       //Neutrinos when RSA is off
@@ -9801,8 +9882,9 @@ int perturbations_print_variables(double tau,
       ppt->size_vector_perturbation_data[ppw->index_ikout] = 0;
     }
     else{
-      class_realloc(ppt->vector_perturbations_data[ppw->index_ikout],
-		      sizeof(double)*(ppt->size_vector_perturbation_data[ppw->index_ikout]+ppt->number_of_vector_titles),ppt->error_message);
+      ppt->vector_perturbations_data[ppw->index_ikout] =
+        (double*)realloc(ppt->vector_perturbations_data[ppw->index_ikout],
+                sizeof(double)*(ppt->size_vector_perturbation_data[ppw->index_ikout]+ppt->number_of_vector_titles));
     }
     storeidx = 0;
     dataptr = ppt->vector_perturbations_data[ppw->index_ikout]+
@@ -9839,7 +9921,11 @@ int perturbations_print_variables(double tau,
       break;
     }
 
-  }
+    if (ppt->has_magnetic_transfer == _TRUE_)
+      class_store_double(dataptr, y[ppw->pv->index_pt_magnetic], _TRUE_, storeidx);
+
+  }  
+  
   /** - for tensor modes: */
 
   if (_tensors_) {
@@ -11215,6 +11301,7 @@ int perturbations_derivs(double tau,
 	  break;
 	case tam:
 	  theta_g = y[pv->index_pt_l1_g];
+
 	  if (ppt->gauge == synchronous) {
 
 	    //2.32 of 2410.03612 or A18 of 9709066
@@ -11299,6 +11386,10 @@ int perturbations_derivs(double tau,
 
 	  break;
 	}
+
+	if (ppt->has_magnetic_transfer == _TRUE_)
+	  dy[pv->index_pt_magnetic] = _inv_Mpc2_Gauss_*sqrt(k2 + 2.*pba->K)*a*pvecthermo[pth->index_th_dkappa]/R/pvecthermo[pth->index_th_xe]*(y[pv->index_pt_theta_b]-theta_g); 
+	
       }
       else {
 	// We recall that in TCA the baryons stand in fact for the tight-coupled fluid of baryons and photons
@@ -11352,18 +11443,19 @@ int perturbations_derivs(double tau,
 
 	    ppw->tca_T2_vector = 4./9.* zerokappam[2] /pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b]);
 	    ppw->tca_slip_vector = -R/(1.+R)/pvecthermo[pth->index_th_dkappa]*(a_prime_over_a*(y[pv->index_pt_theta_b]-y[pv->index_pt_V]) - zerokappam[2]/5*ppw->tca_T2_vector);
-
+	    
 	    dy[pv->index_pt_theta_b] = -a_prime_over_a*R/(1.+R)*y[pv->index_pt_theta_b]
-	      + pvecmetric[ppw->index_mt_V_prime] +a_prime_over_a*R/(1.+R)*y[pv->index_pt_V]
-	      -zerokappam[2]/5./(1.+R)*ppw->tca_T2_vector;
-
-	  }
-	  break;
-	  }*/
+	    + pvecmetric[ppw->index_mt_V_prime] +a_prime_over_a*R/(1.+R)*y[pv->index_pt_V]
+	    -zerokappam[2]/5./(1.+R)*ppw->tca_T2_vector;
+	    
+	    }
+	    break;
+	    }*/
       }
     }
     else {
       //If RSA is on we still need to integrate the baryons but we set \f$ v^{synch}_photons=0 \f$.
+
       if (ppt->gauge == synchronous) {
 	dy[pv->index_pt_theta_b] = -(1-3.*cb2)*a_prime_over_a*y[pv->index_pt_theta_b]
 	  - pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b]-0.);
@@ -11373,6 +11465,15 @@ int perturbations_derivs(double tau,
 	  - pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_theta_b] - y[pv->index_pt_V])
 	  + pvecmetric[ppw->index_mt_V_prime]+(1.-3.*cb2)*a_prime_over_a*y[pv->index_pt_V];
       }
+
+      //However we do not integrate the magnetic field anymore. In the RSA approximation, the average velocity difference between baryons and photons is not computed correctly.
+      //We prefer removing it. But this would require some check. TBC.
+      //if (ppt->has_magnetic_transfer == _TRUE_)
+      //	dy[pv->index_pt_magnetic] = _inv_Mpc2_Gauss_*sqrt(k2 + 2.*pba->K)*a*pvecthermo[pth->index_th_dkappa]/R/pvecthermo[pth->index_th_xe]*y[pv->index_pt_theta_b];
+      if (ppt->has_magnetic_transfer == _TRUE_)
+      	dy[pv->index_pt_magnetic] = 0.;
+     
+      
     }
     //ur species
     if (ppt->evolve_vector_ur == _TRUE_) {
@@ -11448,7 +11549,6 @@ int perturbations_derivs(double tau,
          practice the error is always completly negligible. */
 
       //TBC:
-
       idx = pv->index_pt_psi0_ncdm1;
 
       /** - ---> loop over species */
@@ -11494,8 +11594,7 @@ int perturbations_derivs(double tau,
     }
     //In all cases we integrate the metric
     dy[pv->index_pt_V] = pvecmetric[ppw->index_mt_V_prime];
-
-  }
+  }  
 
   /** - tensor modes: */
   if (_tensors_) {

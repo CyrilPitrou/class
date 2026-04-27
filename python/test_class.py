@@ -317,6 +317,7 @@ class TestClass(unittest.TestCase):
                 'primordial_verbose': 1,
                 'harmonic_verbose': 1,
                 'fourier_verbose': 1,
+                'magnetic_verbose': 1,
                 'lensing_verbose': 1,
                 'distortions_verbose': 1,
                 'output_verbose': 1,

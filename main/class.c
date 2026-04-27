@@ -12,6 +12,7 @@ int main(int argc, char **argv) {
   struct perturbations pt;         /* for source functions */
   struct primordial pm;       /* for primordial spectra */
   struct fourier fo;        /* for non-linear spectra */
+  struct magnetic ma;        /* for magnetic spectra */
   struct transfer tr;        /* for transfer functions */
   struct harmonic hr;          /* for output spectra */
   struct lensing le;          /* for lensed spectra */
@@ -19,7 +20,7 @@ int main(int argc, char **argv) {
   struct output op;           /* for output files */
   ErrorMsg errmsg;            /* for error messages */
 
-  if (input_init(argc, argv,&pr,&ba,&th,&pt,&tr,&pm,&hr,&fo,&le,&sd,&op,errmsg) == _FAILURE_) {
+  if (input_init(argc, argv,&pr,&ba,&th,&pt,&tr,&pm,&hr,&fo,&ma,&le,&sd,&op,errmsg) == _FAILURE_) {
     printf("\n\nError running input_init \n=>%s\n",errmsg);
     return _FAILURE_;
   }
@@ -49,6 +50,11 @@ int main(int argc, char **argv) {
     return _FAILURE_;
   }
 
+  if (magnetic_init(&pr,&ba,&th,&pt,&pm,&ma) == _FAILURE_) {
+    printf("\n\nError in magnetic_init \n=>%s\n",ma.error_message);
+    return _FAILURE_;
+  }
+  
   if (transfer_init(&pr,&ba,&th,&pt,&fo,&tr) == _FAILURE_) {
     printf("\n\nError in transfer_init \n=>%s\n",tr.error_message);
     return _FAILURE_;
@@ -69,7 +75,7 @@ int main(int argc, char **argv) {
     return _FAILURE_;
   }
 
-  if (output_init(&ba,&th,&pt,&pm,&tr,&hr,&fo,&le,&sd,&op) == _FAILURE_) {
+  if (output_init(&ba,&th,&pt,&pm,&tr,&hr,&fo,&ma,&le,&sd,&op) == _FAILURE_) {
     printf("\n\nError in output_init \n=>%s\n",op.error_message);
     return _FAILURE_;
   }
@@ -101,6 +107,11 @@ int main(int argc, char **argv) {
     return _FAILURE_;
   }
 
+  if (magnetic_free(&ma) == _FAILURE_) {
+    printf("\n\nError in magnetic_free \n=>%s\n",ma.error_message);
+    return _FAILURE_;
+  }
+  
   if (primordial_free(&pm) == _FAILURE_) {
     printf("\n\nError in primordial_free \n=>%s\n",pm.error_message);
     return _FAILURE_;

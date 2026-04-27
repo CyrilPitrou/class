@@ -101,6 +101,7 @@ int output_total_cl_at_l(
  * @param ptr Input: pointer to transfer structure
  * @param phr Input: pointer to harmonic structure
  * @param pfo Input: pointer to fourier structure
+ * @param pma Input: pointer to magnetic structure
  * @param ple Input: pointer to lensing structure
  * @param psd Input: pointer to distortions structure
  * @param pop Input: pointer to output structure
@@ -114,6 +115,7 @@ int output_init(
                 struct transfer * ptr,
                 struct harmonic * phr,
                 struct fourier * pfo,
+		struct magnetic * pma,
                 struct lensing * ple,
                 struct distortions * psd,
                 struct output * pop
@@ -123,7 +125,7 @@ int output_init(
 
   /** - check that we really want to output at least one file */
 
-  if ((ppt->has_cls == _FALSE_) && (ppt->has_pk_matter == _FALSE_) && (ppt->has_density_transfers == _FALSE_) && (ppt->has_velocity_transfers == _FALSE_) && (pop->write_background == _FALSE_) && (pop->write_thermodynamics == _FALSE_) && (pop->write_primordial == _FALSE_) && (ppt->has_vector_velocity_transfers == _FALSE_)) {
+  if ((ppt->has_cls == _FALSE_) && (ppt->has_pk_matter == _FALSE_) && (ppt->has_density_transfers == _FALSE_) && (ppt->has_velocity_transfers == _FALSE_) && (pop->write_background == _FALSE_) && (pop->write_thermodynamics == _FALSE_) && (pop->write_primordial == _FALSE_) && (ppt->has_magnetic_transfer == _FALSE_) && (ppt->has_vector_velocity_transfers == _FALSE_)) {
     if (pop->output_verbose > 0)
       printf("No output files requested. Output module skipped.\n");
     return _SUCCESS_;
@@ -172,6 +174,15 @@ int output_init(
                  pop->error_message);
     }
   }
+  /** deal with magnetic field power spectrum */
+  
+  if (ppt->has_magnetic_transfer == _TRUE_) {
+
+    class_call(output_Bk(pba,ppt,pma,pop),
+               pop->error_message,
+               pop->error_message);
+
+  }
 
   /** - deal with density and matter power spectra */
 
@@ -184,7 +195,7 @@ int output_init(
   }
 
   /** vector modes output */
-  if (ppt->has_vector_velocity_transfers == _TRUE_) {
+  if ((ppt->has_magnetic_transfer == _TRUE_) || (ppt->has_vector_velocity_transfers == _TRUE_)) {
     
     class_call(output_tk(pba,ppt,pop,ppt->index_md_vectors),
                pop->error_message,
@@ -539,11 +550,33 @@ int output_cl(
               strcpy(first_line,"[l(l+1)/2pi] C_l's for vector octupole (OCT_V) mode");
             }
 
+	    if ((ppt->has_smd_v == _TRUE_) &&
+                (index_ic1 == ppt->index_ic_smd_v) && (index_ic2 == ppt->index_ic_smd_v)) {
+
+              sprintf(file_name,"%s%s",pop->root,"clv_smd.dat");
+              strcpy(first_line,"[l(l+1)/2pi] C_l's for vector sourced (SMD_V) mode");
+            }
+
+
 	    if ((ppt->has_iso_v == _TRUE_) && (ppt->has_oct_v == _TRUE_) &&
                 (index_ic1 == ppt->index_ic_iso_v) && (index_ic2 == ppt->index_ic_oct_v)) {
 
               sprintf(file_name,"%s%s",pop->root,"clv_iso_oct.dat");
               strcpy(first_line,"[l(l+1)/2pi] C_l's for vector cross ISO_VxOCT_V mode");
+            }
+
+	    if ((ppt->has_iso_v == _TRUE_) && (ppt->has_smd_v == _TRUE_) &&
+                (index_ic1 == ppt->index_ic_iso_v) && (index_ic2 == ppt->index_ic_smd_v)) {
+
+              sprintf(file_name,"%s%s",pop->root,"clv_iso_smd.dat");
+              strcpy(first_line,"[l(l+1)/2pi] C_l's for vector cross ISO_VxSMD_V mode");
+            }
+
+	    if ((ppt->has_oct_v == _TRUE_) && (ppt->has_smd_v == _TRUE_) &&
+                (index_ic1 == ppt->index_ic_oct_v) && (index_ic2 == ppt->index_ic_smd_v)) {
+	      
+              sprintf(file_name,"%s%s",pop->root,"clv_oct_smd.dat");
+              strcpy(first_line,"[l(l+1)/2pi] C_l's for vector cross OCT_VxSMD_V mode");
             }
 
 	  }
@@ -1054,6 +1087,223 @@ int output_pk(
   return _SUCCESS_;
 }
 
+
+/**
+ * This routines writes the output in files for magnetic field power spectrum B(k)
+ *
+ * @param pba       Input: pointer to background structure (needed for calling harmonic_pk_at_z())
+ * @param ppt       Input: pointer perturbation structure
+ * @param pma       Input: pointer to magnetic structure
+ * @param pop       Input: pointer to output structure
+ * @param pk_output Input: pk_linear or pk_nonlinear
+ */
+
+int output_Bk(
+              struct background * pba,
+              struct perturbations * ppt,
+              struct magnetic * pma,
+              struct output * pop
+	      ) {
+
+  /** Summary: */
+
+  /** - define local variables */
+
+  FILE ** out_pk_ic = NULL;  /* out_pk_ic[index_ic1_ic2] is a pointer to a file with P(k) for each pair of ic */
+  FILE * out_pk;             /* out_pk[index_pk] is a pointer to a file with total P(k) summed over ic */
+
+  double * ln_pk_ic = NULL;  /* array ln_pk_ic[index_k * pfo->ic_ic_size + index_ic1_ic2] */
+  double * ln_pk;            /* array ln_pk[index_k] */
+
+  int index_ic1,index_ic2;
+  int index_ic1_ic2=0;
+  int index_k;
+  int index_z;
+
+  FileName file_name;
+
+  char redshift_suffix[7]; // 7 is enough to write "z%d_" as long as there are at most 10'000 bins
+  char type_suffix[9];     // 6 is enough to write "pk_cb_nl" plus closing character \0
+  char first_line[_LINE_LENGTH_MAX_];
+  short do_ic = _FALSE_;
+
+  /** - preliminary: check whether we need to output the decomposition into contributions from each initial condition */
+
+  if (pma->ic_size > 1)
+    do_ic = _TRUE_;
+
+  /** - allocate arrays to store the P(k) */
+
+  class_alloc(ln_pk,
+              pma->k_size*sizeof(double),
+              pop->error_message);
+
+  if (do_ic == _TRUE_) {
+
+    class_alloc(ln_pk_ic,
+                pma->k_size*pma->ic_ic_size*sizeof(double),
+                pop->error_message);
+
+    /** - allocate pointer to output files */
+
+    class_alloc(out_pk_ic,
+                pma->ic_ic_size*sizeof(FILE *),
+                pop->error_message);
+  }
+
+  sprintf(type_suffix,"Bk");
+
+  /** - loop over z */
+
+  for (index_z = 0; index_z < pop->z_pk_num; index_z++) {
+    
+    /** - first, check that requested redshift z_pk is consistent */
+    
+    class_test((pop->z_pk[index_z] > ppt->z_max_pk),
+	       pop->error_message,
+	       "B(k,z) computed up to z=%f but requested at z=%f. Must increase z_max_pk in precision file.",ppt->z_max_pk,pop->z_pk[index_z]);
+    
+    if (pop->z_pk_num == 1)
+      redshift_suffix[0]='\0';
+    else
+      sprintf(redshift_suffix,"z%d_",index_z+1);
+    
+    /** - second, open only the relevant files and write a header in each of them */
+    
+    sprintf(file_name,"%s%s%s%s",pop->root,redshift_suffix,type_suffix,".dat");
+    
+    class_call(output_open_Bk_file(pba,
+				   pma,
+				   pop,
+				   &out_pk,
+				   file_name,
+				   "",
+				   pop->z_pk[index_z]
+				   ),
+	       pop->error_message,
+	       pop->error_message);
+    
+    if (do_ic == _TRUE_) {
+      
+      for (index_ic1 = 0; index_ic1 < pma->ic_size; index_ic1++) {
+	
+	for (index_ic2 = index_ic1; index_ic2 < pma->ic_size; index_ic2++) {
+	  
+	  if ((ppt->has_iso_v == _TRUE_) && (index_ic1 == ppt->index_ic_iso_v) && (index_ic2 == ppt->index_ic_iso_v)) {
+	    sprintf(file_name,"%s%s%s%s",pop->root,redshift_suffix,type_suffix,"_iso_v.dat");
+	    strcpy(first_line,"for isocurvature vector (ISO_V) mode ");
+	  }
+	  
+	  if ((ppt->has_oct_v == _TRUE_) && (index_ic1 == ppt->index_ic_oct_v) && (index_ic2 == ppt->index_ic_oct_v)) {
+	    sprintf(file_name,"%s%s%s%s",pop->root,redshift_suffix,type_suffix,"_oct_v.dat");
+	    strcpy(first_line,"for octupolar vector (OCT_V) mode ");
+	  }
+
+	  if ((ppt->has_smd_v == _TRUE_) && (index_ic1 == ppt->index_ic_smd_v) && (index_ic2 == ppt->index_ic_smd_v)) {
+	    sprintf(file_name,"%s%s%s%s",pop->root,redshift_suffix,type_suffix,"_smd_v.dat");
+	    strcpy(first_line,"for sourced vector (SMD_V) mode ");
+	  }
+	  
+	  if ((ppt->has_iso_v == _TRUE_) && (ppt->has_oct_v == _TRUE_) && (index_ic1 == ppt->index_ic_iso_v) && (index_ic2 == ppt->index_ic_oct_v)) {
+	    sprintf(file_name,"%s%s%s%s",pop->root,redshift_suffix,type_suffix,"_iso_v_oct_v.dat");
+	    strcpy(first_line,"for cross ISO_VxOCT_V mode ");
+	  }
+
+	  if ((ppt->has_iso_v == _TRUE_) && (ppt->has_smd_v == _TRUE_) && (index_ic1 == ppt->index_ic_iso_v) && (index_ic2 == ppt->index_ic_smd_v)) {
+	    sprintf(file_name,"%s%s%s%s",pop->root,redshift_suffix,type_suffix,"_iso_v_smd_v.dat");
+	    strcpy(first_line,"for cross ISO_VxSMD_V mode ");
+	  }
+	  
+	  if ((ppt->has_oct_v == _TRUE_) && (ppt->has_smd_v == _TRUE_) && (index_ic1 == ppt->index_ic_oct_v) && (index_ic2 == ppt->index_ic_smd_v)) {
+	    sprintf(file_name,"%s%s%s%s",pop->root,redshift_suffix,type_suffix,"_oct_v_smd_v.dat");
+	    strcpy(first_line,"for cross OCT_VxSMD_V mode ");
+	  }
+	  
+	  index_ic1_ic2 = index_symmetric_matrix(index_ic1,index_ic2,pma->ic_size);
+	  
+	  if (pma->is_non_zero[index_ic1_ic2] == _TRUE_) {
+	    
+	    class_call(output_open_Bk_file(pba,
+					   pma,
+					   pop,
+					   &(out_pk_ic[index_ic1_ic2]),
+					   file_name,
+					   first_line,
+					   pop->z_pk[index_z]
+					   ),
+		       pop->error_message,
+		       pop->error_message);
+	  }
+	}
+      }
+    }
+    
+    /** - third, compute P(k) for each k */
+    
+    class_call(magnetic_Bk_at_z(pba,
+				pma,
+				logarithmic,
+				pop->z_pk[index_z],
+				ln_pk,
+				ln_pk_ic
+				),
+	       pma->error_message,
+	       pop->error_message);
+    
+    /** - fourth, write in files */
+
+    for (index_k=0; index_k<pma->k_size; index_k++) {
+
+      class_call(output_one_line_of_Bk(out_pk,
+				       exp(pma->ln_k[index_k])/pba->h,
+				       exp(ln_pk[index_k])*pow(pba->h,3)
+				       ),
+		 pop->error_message,
+		 pop->error_message);
+      
+      if (do_ic == _TRUE_) {
+
+	for (index_ic1_ic2 = 0; index_ic1_ic2 < pma->ic_ic_size; index_ic1_ic2++) {
+	  
+	  if (pma->is_non_zero[index_ic1_ic2] == _TRUE_) {
+
+	    class_call(output_one_line_of_Bk(out_pk_ic[index_ic1_ic2],
+					     exp(pma->ln_k[index_k])/pba->h,
+					     exp(ln_pk_ic[index_k * pma->ic_ic_size + index_ic1_ic2])*pow(pba->h,3)),
+		       pop->error_message,
+		       pop->error_message);
+	  }
+	}
+      }
+    } /* end loop over k */
+
+      /** - fifth, close files */
+    
+    fclose(out_pk);
+
+    if (do_ic == _TRUE_) {
+      for (index_ic1_ic2 = 0; index_ic1_ic2 < pma->ic_ic_size; index_ic1_ic2++) {
+	if (pma->is_non_zero[index_ic1_ic2] == _TRUE_) {
+	  fclose(out_pk_ic[index_ic1_ic2]);
+	}
+      }
+    }
+
+  } /* end loop over index_z */
+
+  /* free arrays and pointers */
+  free(ln_pk);
+  if (do_ic = _TRUE_) {
+    free(ln_pk_ic);
+    free(out_pk_ic);
+  }
+  
+  return _SUCCESS_;
+}
+
+
+
+
 /**
  * This routines writes the output in files for matter transfer functions \f$ T_i(k)\f$'s.
  *
@@ -1142,7 +1392,6 @@ int output_tk(
       class_call(perturbations_output_firstline_and_ic_suffix(ppt, index_md, index_ic, first_line, ic_suffix),
                  ppt->error_message, pop->error_message);
       
-      
       if (_scalars_) {
 	
 	if ((ppt->has_ad == _TRUE_) && (ppt->ic_size[index_md] == 1) )
@@ -1199,6 +1448,8 @@ int output_tk(
 	  fprintf(tkfile,"# number of wavenumbers equal to %d\n",ppt->k_size[index_md]);
 	  if (ppt->has_vector_velocity_transfers == _TRUE_) //This conditional is a bit useless since we arrive to this function for vector modes only it is already true. 
 	    fprintf(tkfile,"# t_i   stands for v^(1)_i(k,z) and is dimensionless \n");
+	  if (ppt->has_magnetic_transfer == _TRUE_) 
+	    fprintf(tkfile,"# B is the vector component of the magnetic field in Gauss, that is B^(1)(k,z) \n");
 	  fprintf(tkfile,"#\n");
 	}
       }
@@ -1207,7 +1458,7 @@ int output_tk(
 			titles,
 			data+index_ic*size_data,
 			size_data);
-      
+
       /** - free memory and close files */
       fclose(tkfile);
       
@@ -1954,6 +2205,39 @@ int output_open_pk_file(
   return _SUCCESS_;
 }
 
+/** Idem for magnetic field */
+
+int output_open_Bk_file(
+                        struct background * pba,
+                        struct magnetic * pma,
+                        struct output * pop,
+                        FILE * * pkfile,
+                        FileName filename,
+                        char * first_line,
+                        double z
+                        ) {
+
+  int colnum = 1;
+  class_open(*pkfile,filename,"w",pop->error_message);
+
+  if (pop->write_header == _TRUE_) {
+    fprintf(*pkfile,"# (comoving) magnetic field power spectrum  a^2 B(k)  %sat redshift z=%g\n",first_line,z);
+    fprintf(*pkfile,"# for k=%g to %g h/Mpc,\n",
+            exp(pma->ln_k[0])/pba->h,
+            exp(pma->ln_k[pma->k_size-1])/pba->h);
+    fprintf(*pkfile,"# number of wavenumbers equal to %d\n",pma->k_size);
+
+    fprintf(*pkfile,"#");
+    class_fprintf_columntitle(*pkfile,"k (h/Mpc)",_TRUE_,colnum);
+    class_fprintf_columntitle(*pkfile,"P_B G^2*(Mpc/h)^3",_TRUE_,colnum);
+
+    fprintf(*pkfile,"\n");
+  }
+
+  return _SUCCESS_;
+}
+
+
 /**
  * This routine writes one line with k and P(k)
  *
@@ -1964,6 +2248,23 @@ int output_open_pk_file(
  */
 
 int output_one_line_of_pk(
+                          FILE * pkfile,
+                          double one_k,
+                          double one_pk
+                          ) {
+
+  fprintf(pkfile," ");
+  class_fprintf_double(pkfile,one_k,_TRUE_);
+  class_fprintf_double(pkfile,one_pk,_TRUE_);
+  fprintf(pkfile,"\n");
+
+  return _SUCCESS_;
+
+}
+
+/** idem for magnetic field */
+
+int output_one_line_of_Bk(
                           FILE * pkfile,
                           double one_k,
                           double one_pk

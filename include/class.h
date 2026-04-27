@@ -26,6 +26,7 @@
 #include "perturbations.h"
 #include "primordial.h"
 #include "fourier.h"
+#include "magnetic.h"
 #include "transfer.h"
 #include "harmonic.h"
 #include "distortions.h"

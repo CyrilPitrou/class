@@ -100,6 +100,7 @@ cdef class Class:
     cdef perturbations pt
     cdef primordial pm
     cdef fourier fo
+    cdef magnetic ma	
     cdef transfer tr
     cdef harmonic hr
     cdef output op
@@ -435,6 +436,8 @@ cdef class Class:
             transfer_free(&self.tr)
         if self.fo.is_allocated:
             fourier_free(&self.fo)
+        if self.ma.is_allocated:
+            magnetic_free(&self.ma)
         if self.pm.is_allocated:
             primordial_free(&self.pm)
         if self.pt.is_allocated:
@@ -564,7 +567,7 @@ cdef class Class:
         if "input" in level:
             if input_read_from_file(&self.fc, &self.pr, &self.ba, &self.th,
                                     &self.pt, &self.tr, &self.pm, &self.hr,
-                                    &self.fo, &self.le, &self.sd, &self.op, errmsg) == _FAILURE_:
+                                    &self.fo, &self.ma, &self.le, &self.sd, &self.op, errmsg) == _FAILURE_:
                 raise CosmoSevereError(errmsg)
             self.ncp.add("input")
             # This part is done to list all the unread parameters, for debugging
@@ -615,6 +618,13 @@ cdef class Class:
                 self.struct_cleanup()
                 raise CosmoComputationError(self.fo.error_message)
             self.ncp.add("fourier")
+
+        if "magnetic" in level:
+            if magnetic_init(&self.pr, &self.ba, &self.th,
+                              &self.pt, &self.pm, &self.ma) == _FAILURE_:
+                self.struct_cleanup()
+                raise CosmoComputationError(self.ma.error_message)
+            self.ncp.add("magnetic")
 
         if "transfer" in level:
             if transfer_init(&(self.pr), &(self.ba), &(self.th),
@@ -2120,6 +2130,102 @@ cdef class Class:
             raise CosmoSevereError(self.fo.error_message)
 
         return pk_tilt
+
+    #calculates the hmcode window_function of the Navarrow Frenk White Profile
+    def fourier_hmcode_window_nfw(self,double k,double rv,double c):
+        """
+        Gives window_nfw for a given wavevector k, virial radius rv and concentration c
+
+        """
+        self.compute(["fourier"])
+
+        cdef double window_nfw
+
+
+        if fourier_hmcode_window_nfw(&self.fo,k,rv,c,&window_nfw)==_FAILURE_:
+                 raise CosmoSevereError(self.hr.error_message)
+
+        return window_nfw
+
+    def age(self):
+        self.compute(["background"])
+        return self.ba.age
+
+    def h(self):
+        return self.ba.h
+
+    def n_s(self):
+        return self.pm.n_s
+
+    def tau_reio(self):
+        self.compute(["thermodynamics"])
+        return self.th.tau_reio
+
+    def Omega_m(self):
+        return self.ba.Omega0_m
+
+    def Omega_r(self):
+        return self.ba.Omega0_r
+
+    def theta_s_100(self):
+        self.compute(["thermodynamics"])
+        return 100.*self.th.rs_rec/self.th.da_rec/(1.+self.th.z_rec)
+
+    def theta_star_100(self):
+        self.compute(["thermodynamics"])
+        return 100.*self.th.rs_star/self.th.da_star/(1.+self.th.z_star)
+
+    def Omega_Lambda(self):
+        return self.ba.Omega0_lambda
+
+    def Omega_g(self):
+        return self.ba.Omega0_g
+
+    def Omega_b(self):
+        return self.ba.Omega0_b
+
+    def omega_b(self):
+        return self.ba.Omega0_b * self.ba.h * self.ba.h
+
+    def Neff(self):
+        self.compute(["background"])
+        return self.ba.Neff
+
+    def k_eq(self):
+        self.compute(["background"])
+        return self.ba.a_eq*self.ba.H_eq
+
+    def z_eq(self):
+        self.compute(["background"])
+        return 1./self.ba.a_eq-1.
+
+    def sigma8(self):
+        self.compute(["fourier"])
+        if (self.pt.has_pk_matter == _FALSE_):
+            raise CosmoSevereError("No power spectrum computed. In order to get sigma8, you must add mPk to the list of outputs.")
+        return self.fo.sigma8[self.fo.index_pk_m]
+
+    def sigma1_B(self):
+        self.compute(["magnetic"])
+        return self.ma.sigma1
+
+    #def neff(self):
+    #    self.compute(["harmonic"])
+    #    return self.hr.neff
+
+    def sigma8_cb(self):
+        self.compute(["fourier"])
+        if (self.pt.has_pk_matter == _FALSE_):
+            raise CosmoSevereError("No power spectrum computed. In order to get sigma8_cb, you must add mPk to the list of outputs.")
+        return self.fo.sigma8[self.fo.index_pk_cb]
+
+    def rs_drag(self):
+        self.compute(["thermodynamics"])
+        return self.th.rs_d
+
+    def z_reio(self):
+        self.compute(["thermodynamics"])
+        return self.th.z_reio
 
     def angular_distance(self, z):
         """
@@ -3707,6 +3813,8 @@ cdef class Class:
                 if (self.pt.has_pk_matter == _FALSE_):
                     raise CosmoSevereError("No power spectrum computed. In order to get sigma8_cb, you must add mPk to the list of outputs.")
                 value = self.fo.sigma8[self.fo.index_pk_cb]
+            elif name == 'sigma1_B':	
+                value = self.ma.sigma1
             elif name == 'k_eq':
                 value = self.ba.a_eq*self.ba.H_eq
             elif name == 'a_eq':

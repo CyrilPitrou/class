@@ -139,6 +139,7 @@ struct perturbations
 
   short has_iso_v;     /**< do we need isocurvature vector mode? */
   short has_oct_v;     /**< do we need (neutrino) octupole vector mode? */
+  short has_smd_v;     /**< do we need vector sourced mode? */
 
   /* perturbed recombination */
   /** Do we want to consider perturbed temperature and ionization fraction? */
@@ -171,6 +172,7 @@ struct perturbations
   short has_nc_lens;     /**< in dCl, do we want lensing terms ? */
   short has_nc_gr;       /**< in dCl, do we want gravity terms ? */
 
+  short has_magnetic_transfer;    /**< do we need the magnetic field ? */
   short has_vector_velocity_transfers;       /**< do we need to output individual vector velocity transfer functions? */
 
   int l_scalar_max; /**< maximum l value for CMB scalars \f$ C_l \f$'s */
@@ -178,6 +180,7 @@ struct perturbations
   int l_tensor_max; /**< maximum l value for CMB tensors \f$ C_l \f$'s */
   int l_lss_max; /**< maximum l value for LSS \f$ C_l \f$'s (density and lensing potential in  bins) */
   double k_max_for_pk; /**< maximum value of k in 1/Mpc required for the output of P(k,z) and T(k,z) */
+  double k_max_for_B; /**< maximum value of k in 1/Mpc required for the transfer T(k,z) of magnetic fields */
 
   short want_lcmb_full_limber; /**< In general, do we want to use the full Limber scheme introduced in v3.2.2? With this full Limber scheme, the calculation of the CMB lensing potential spectrum C_l^phiphi for l > ppr->l_switch_limber is based on a new integration scheme. Compared to the previous scheme, which can be recovered by switching this parameter to _FALSE_, the new scheme uses a larger k_max and a coarser k-grid (or q-grid) than the CMB transfer function. The new scheme is used by default, because the old one is inaccurate at large l due to the too small k_max. */
 
@@ -206,6 +209,8 @@ struct perturbations
   double * alpha_idm_dr; /**< Angular contribution to collisional term at l>=2 for idm_fr-idr */
   double * beta_idr;  /**< Angular contribution to collisional term at l>=2 for idr-idr */
 
+  double smd_zstart; /**< redshift beginning for the vector (artificially) sourced mode */
+  
   int idr_nature; /**< Nature of the interacting dark radiation (free streaming or fluid) */
 
   //@}
@@ -266,6 +271,7 @@ struct perturbations
 
   int index_ic_iso_v; /**< index value for isocurvature in vector modes */
   int index_ic_oct_v; /**< index value for neutrino octupolar in vector modes */
+  int index_ic_smd_v; /**< index value for sourced mode in vector modes */
 
   int * ic_size;       /**< for a given mode, ic_size[index_md] = number of initial conditions included in computation */
 
@@ -375,6 +381,7 @@ struct perturbations
   int index_tp_vector_theta_g;     /**< index value for theta of gammas for vector modes */
   int index_tp_vector_theta_b;     /**< index value for theta of baryons for vector modes */
   int index_tp_vector_theta_ur;     /**< index value for theta of ur species for vector modes */
+  int index_tp_magnetic;   /**< index value for magnetic field */
   int index_tp_V;          /**< index value for metric fluctuation V (vector mode) */
 
   int * tp_size; /**< number of types tp_size[index_md] included in computation for each mode */
@@ -577,7 +584,10 @@ struct perturbations_vector
   int index_pt_perturbed_recombination_delta_temp;		/**< Gas temperature perturbation */
   int index_pt_perturbed_recombination_delta_chi;		/**< Inionization fraction perturbation */
 
-  /** The index to the first Legendre multipole of the DR expansion. Note
+  /* Magnetic field for vector modes */
+  int index_pt_magnetic;                                        /**< Magnetic field */
+
+  /** The index to the first Legendre multipole of the DR expansion. Not
       that this is not exactly the usual delta, see Kaplinghat et al.,
       astro-ph/9907388. */
   int index_pt_F0_dr;

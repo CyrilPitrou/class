@@ -6,6 +6,7 @@
 #include "common.h"
 #include "lensing.h"
 #include "distortions.h"
+#include "magnetic.h"
 
 /**
  * Maximum number of values of redshift at which the spectra will be
@@ -91,6 +92,7 @@ extern "C" {
                   struct transfer * ptr,
                   struct harmonic * phr,
                   struct fourier * pfo,
+		  struct magnetic * pma,
                   struct lensing * ple,
                   struct distortions * psd,
                   struct output * pop
@@ -112,6 +114,13 @@ extern "C" {
                 enum pk_outputs pk_output
                 );
 
+  int output_Bk(
+                struct background * pba,
+                struct perturbations * ppt,
+                struct magnetic * pma,
+                struct output * pop
+                );
+  
   int output_tk(
                 struct background * pba,
                 struct perturbations * ppt,
@@ -186,12 +195,30 @@ extern "C" {
                           double z
                           );
 
+  int output_open_Bk_file(
+                          struct background * pba,
+                          struct magnetic * pma,
+                          struct output * pop,
+                          FILE ** pkfile,
+                          FileName filename,
+                          char * first_line,
+                          double z
+                          );
+
+  
   int output_one_line_of_pk(
                             FILE * tkfile,
                             double one_k,
                             double one_pk
                             );
 
+  int output_one_line_of_Bk(
+                            FILE * tkfile,
+                            double one_k,
+                            double one_pk
+                            );
+
+  
 #ifdef __cplusplus
 }
 #endif

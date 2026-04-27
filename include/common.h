@@ -369,6 +369,7 @@ struct transfer;
 struct primordial;
 struct harmonic;
 struct fourier;
+struct magnetic;
 struct lensing;
 struct distortions;
 struct output;

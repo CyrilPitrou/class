@@ -261,9 +261,9 @@ extern "C" {
                       struct background * pba,
                       struct fourier *pfo,
                       enum linear_or_logarithmic mode,
-                      enum pk_outputs pk_output,
+		      enum pk_outputs pk_output,
                       double z,
-                      int index_pk,
+		      int index_pk,
                       double * out_pk,
                       double * out_pk_ic
                       );

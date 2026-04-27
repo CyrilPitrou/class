@@ -21,6 +21,7 @@
 #include "primordial.h"
 #include "harmonic.h"
 #include "fourier.h"
+#include "magnetic.h"
 #include "lensing.h"
 #include "distortions.h"
 #include "output.h"
@@ -38,6 +39,7 @@
  * @param ppm     Input: pointer to primordial structure
  * @param phr     Input: pointer to harmonic structure
  * @param pfo     Input: pointer to fourier structure
+ * @param pma     Input: pointer to magnetic structure
  * @param ple     Input: pointer to lensing structure
  * @param psd     Input: pointer to distorsion structure
  * @param pop     Input: pointer to output structure
@@ -55,6 +57,7 @@ int input_init(int argc,
                struct primordial *ppm,
                struct harmonic *phr,
                struct fourier * pfo,
+	       struct magnetic * pma,
                struct lensing *ple,
                struct distortions *psd,
                struct output *pop,
@@ -75,7 +78,7 @@ int input_init(int argc,
 
   /** Initialize all parameters given the input 'file_content' structure.
       If its size is null, all parameters take their default values. */
-  class_call(input_read_from_file(&fc,ppr,pba,pth,ppt,ptr,ppm,phr,pfo,ple,psd,pop,
+  class_call(input_read_from_file(&fc,ppr,pba,pth,ppt,ptr,ppm,phr,pfo,pma,ple,psd,pop,
                                   errmsg),
              errmsg,
              errmsg);
@@ -388,6 +391,7 @@ int input_read_from_file(struct file_content * pfc,
                          struct primordial *ppm,
                          struct harmonic *phr,
                          struct fourier * pfo,
+			 struct magnetic * pma,
                          struct lensing *ple,
                          struct distortions *psd,
                          struct output *pop,
@@ -404,7 +408,7 @@ int input_read_from_file(struct file_content * pfc,
       Before getting into the assignment of parameters and the shooting, we want
       to already fix our precision parameters. No precision parameter should
       depend on any input parameter  */
-  class_call(input_read_precisions(pfc,ppr,pba,pth,ppt,ptr,ppm,phr,pfo,ple,psd,pop,
+  class_call(input_read_precisions(pfc,ppr,pba,pth,ppt,ptr,ppm,phr,pfo,pma,ple,psd,pop,
                                    errmsg),
              errmsg,
              errmsg);
@@ -417,7 +421,7 @@ int input_read_from_file(struct file_content * pfc,
 
   /** Find out if shooting necessary and, eventually, shoot and initialize
       read parameters */
-  class_call(input_shooting(pfc,ppr,pba,pth,ppt,ptr,ppm,phr,pfo,ple,psd,pop,
+  class_call(input_shooting(pfc,ppr,pba,pth,ppt,ptr,ppm,phr,pfo,pma,ple,psd,pop,
                             input_verbose,
                             &has_shooting,
                             errmsg),
@@ -425,7 +429,7 @@ int input_read_from_file(struct file_content * pfc,
              errmsg);
 
   /** Update structs with input that is potentially updated after shooting */
-  class_call(input_read_parameters(pfc,ppr,pba,pth,ppt,ptr,ppm,phr,pfo,ple,psd,pop,
+  class_call(input_read_parameters(pfc,ppr,pba,pth,ppt,ptr,ppm,phr,pfo,pma,ple,psd,pop,
                                     errmsg),
               errmsg,
               errmsg);
@@ -505,6 +509,7 @@ int input_shooting(struct file_content * pfc,
                    struct primordial *ppm,
                    struct harmonic *phr,
                    struct fourier * pfo,
+		   struct magnetic * pma,
                    struct lensing *ple,
                    struct distortions *psd,
                    struct output *pop,
@@ -1157,6 +1162,7 @@ int input_get_guess(double *xguess,
   struct primordial pm;       /* for primordial spectra */
   struct harmonic hr;          /* for output spectra */
   struct fourier fo;        /* for non-linear spectra */
+  struct magnetic ma;        /* for magnetic spectra */
   struct lensing le;          /* for lensed spectra */
   struct distortions sd;      /* for spectral distortions */
   struct output op;           /* for output files */
@@ -1171,11 +1177,11 @@ int input_get_guess(double *xguess,
   /* Assume for now shooting did not fail */
   ba.shooting_failed = _FALSE_;
 
-  class_call(input_read_precisions(&(pfzw->fc),&pr,&ba,&th,&pt,&tr,&pm,&hr,&fo,&le,&sd,&op,
+  class_call(input_read_precisions(&(pfzw->fc),&pr,&ba,&th,&pt,&tr,&pm,&hr,&fo,&ma,&le,&sd,&op,
                                    errmsg),
              errmsg,
              errmsg);
-  class_call(input_read_parameters(&(pfzw->fc),&pr,&ba,&th,&pt,&tr,&pm,&hr,&fo,&le,&sd,&op,
+  class_call(input_read_parameters(&(pfzw->fc),&pr,&ba,&th,&pt,&tr,&pm,&hr,&fo,&ma,&le,&sd,&op,
                                    errmsg),
              errmsg,
              errmsg);
@@ -1325,6 +1331,7 @@ int input_try_unknown_parameters(double * unknown_parameter,
   struct primordial pm;       /* for primordial spectra */
   struct harmonic hr;          /* for output spectra */
   struct fourier fo;        /* for non-linear spectra */
+  struct magnetic ma;        /* for magnetic spectra */
   struct lensing le;          /* for lensed spectra */
   struct distortions sd;      /* for spectral distortions */
   struct output op;           /* for output files */
@@ -1348,12 +1355,12 @@ int input_try_unknown_parameters(double * unknown_parameter,
     class_sprintf(pfzw->fc.value[pfzw->unknown_parameters_index[i]],"%.20e",unknown_parameter[i]);
   }
 
-  class_call(input_read_precisions(&(pfzw->fc),&pr,&ba,&th,&pt,&tr,&pm,&hr,&fo,&le,&sd,&op,
+  class_call(input_read_precisions(&(pfzw->fc),&pr,&ba,&th,&pt,&tr,&pm,&hr,&fo,&ma,&le,&sd,&op,
                                    errmsg),
              errmsg,
              errmsg);
 
-  class_call(input_read_parameters(&(pfzw->fc),&pr,&ba,&th,&pt,&tr,&pm,&hr,&fo,&le,&sd,&op,
+  class_call(input_read_parameters(&(pfzw->fc),&pr,&ba,&th,&pt,&tr,&pm,&hr,&fo,&ma,&le,&sd,&op,
                                    errmsg),
              errmsg,
              errmsg);
@@ -1573,6 +1580,7 @@ int input_read_precisions(struct file_content * pfc,
                           struct primordial *ppm,
                           struct harmonic *phr,
                           struct fourier * pfo,
+			  struct magnetic * pma,
                           struct lensing *ple,
                           struct distortions *psd,
                           struct output *pop,
@@ -1647,6 +1655,7 @@ int input_read_parameters(struct file_content * pfc,
                           struct primordial *ppm,
                           struct harmonic *phr,
                           struct fourier * pfo,
+			  struct magnetic * pma,
                           struct lensing *ple,
                           struct distortions *psd,
                           struct output *pop,
@@ -1658,7 +1667,7 @@ int input_read_parameters(struct file_content * pfc,
   int input_verbose=0;
 
   /** Set all input parameters to default values */
-  class_call(input_default_params(pba,pth,ppt,ptr,ppm,phr,pfo,ple,psd,pop),
+  class_call(input_default_params(pba,pth,ppt,ptr,ppm,phr,pfo,pma,ple,psd,pop),
              errmsg,
              errmsg);
 
@@ -1727,7 +1736,7 @@ int input_read_parameters(struct file_content * pfc,
              errmsg);
 
   /** Read parameters for output quantities */
-  class_call(input_read_parameters_output(pfc,pba,pth,ppt,ptr,ppm,phr,pfo,ple,psd,pop,
+  class_call(input_read_parameters_output(pfc,pba,pth,ppt,ptr,ppm,phr,pfo,pma,ple,psd,pop,
                                           errmsg),
              errmsg,
              errmsg);
@@ -1776,7 +1785,7 @@ int input_read_parameters_general(struct file_content * pfc,
   char * options_number_count[8] = {"density","dens","rsd","RSD","lensing","lens","gr","GR"};
   char * options_modes[6] = {"s","v","t","S","V","T"};
   char * options_ics[10] = {"ad","bi","cdi","nid","niv","AD","BI","CDI","NID","NIV"};
-  char * options_icv[4] = {"iso","oct","ISO","OCT"};
+  char * options_icv[6] = {"iso","oct","smd","ISO","OCT","SMD"};
   
   /* Set local default values */
   ppt->has_perturbations = _FALSE_;
@@ -1833,6 +1842,10 @@ int input_read_parameters_general(struct file_content * pfc,
       ppt->has_perturbations = _TRUE_;
       psd->has_distortions=_TRUE_;
       pth->compute_damping_scale=_TRUE_;
+    }
+    if ((strstr(string1,"BTk") != NULL) || (strstr(string1,"BTK") != NULL)) {
+      ppt->has_magnetic_transfer =_TRUE_;
+      ppt->has_perturbations = _TRUE_;
     }
     if ((strstr(string1,"wTk") != NULL) || (strstr(string1,"WTk") != NULL) || (strstr(string1,"WTK") != NULL)) {
       ppt->has_vector_velocity_transfers=_TRUE_;
@@ -1985,11 +1998,11 @@ int input_read_parameters_general(struct file_content * pfc,
                  "You specified 'modes' as '%s'. It has to contain some of {'s','v','t'}.",string1);
     }
     /* Test */
-    if (ppt->has_vectors == _TRUE_){
+    /*if (ppt->has_vectors == _TRUE_){
       class_test((ppt->has_cl_cmb_temperature == _FALSE_) && (ppt->has_cl_cmb_polarization == _FALSE_),
                  errmsg,
-                 "Inconsistent input: you asked for vectors, so you should have at least one non-zero tensor source type (temperature or polarization). Please adjust your input.");
-    }
+                 "Inconsistent input: you asked for vectors, so you should have at least one non-zero vector source type (temperature or polarization). Please adjust your input.");
+		 }*/
     if (ppt->has_tensors == _TRUE_){
       class_test((ppt->has_cl_cmb_temperature == _FALSE_) && (ppt->has_cl_cmb_polarization == _FALSE_),
                  errmsg,
@@ -2056,6 +2069,9 @@ int input_read_parameters_general(struct file_content * pfc,
     }
     
     if (ppt->has_vectors == _FALSE_) {
+      class_test( (ppt->has_magnetic_transfer == _TRUE_),
+		  errmsg,
+		  "Inconsistency: you want magnetic fields generation, but no vector modes\n");
       class_test( (ppt->has_vector_velocity_transfers == _TRUE_),
 		  errmsg,
 		  "Inconsistency: you want vector velocity transfers, but no vector modes\n");
@@ -2107,15 +2123,20 @@ int input_read_parameters_general(struct file_content * pfc,
         if ((strstr(string1,"oct") != NULL) || (strstr(string1,"OCT") != NULL)){
           ppt->has_oct_v=_TRUE_;
         }
+	if ((strstr(string1,"smd") != NULL) || (strstr(string1,"SMD") != NULL)){
+          ppt->has_smd_v=_TRUE_;
+	  class_read_double("smd_zstart",ppt->smd_zstart);
+	  //printf("DEBUG we choose smd ic.\n");
+        }
         /* Test */
         class_call(parser_check_options(string1, options_icv, 4, &flag1),
                    errmsg,
                    errmsg);
         class_test(flag1==_FALSE_,
-                   errmsg, "The options for 'ic_v' are {'iso','oct'}, you entered '%s'",string1);
-        class_test(ppt->has_iso_v==_FALSE_ && ppt->has_oct_v ==_FALSE_,
+                   errmsg, "The options for 'ic_v' are {'iso','oct','smd'}, you entered '%s'",string1);
+        class_test(ppt->has_iso_v==_FALSE_ && ppt->has_oct_v ==_FALSE_ && ppt->has_smd_v ==_FALSE_,
                    errmsg,
-                   "You specified 'ic' as '%s'. It has to contain some of {'iso','oct'}.",string1);
+                   "You specified 'ic' as '%s'. It has to contain some of {'iso','oct','smd'}.",string1);
       }
     }
 
@@ -5008,7 +5029,7 @@ int input_read_parameters_spectra(struct file_content * pfc,
 
 
   /** 3) Power spectrum P(k) */
-  if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_vector_velocity_transfers == _TRUE_)){
+  if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_vector_velocity_transfers == _TRUE_) || (ppt->has_magnetic_transfer == _TRUE_)){
 
     /** 3.a) Maximum k in P(k) */
     /* Read */
@@ -5052,6 +5073,17 @@ int input_read_parameters_spectra(struct file_content * pfc,
       ppm->has_k_max_for_primordial_pk = _TRUE_;
     }
 
+    /** 3.a.2) Maximum k in for magnetic field transfer */
+    /* Read */
+    class_call(parser_read_double(pfc,"TB_k_max_1/Mpc",&param1,&flag1,errmsg),
+               errmsg,
+               errmsg);
+    /* Complete set of parameters */
+    if (flag1 == _TRUE_){
+      ppt->k_max_for_B=param1;
+    }
+
+
     /** 3.b) Redshift values */
     /* Read */
     class_call(parser_read_list_of_doubles(pfc,"z_pk",&int1,&pointer1,&flag1,errmsg),
@@ -5074,7 +5106,8 @@ int input_read_parameters_spectra(struct file_content * pfc,
   }
 
   /** 3.c) Maximum redshift */
-  if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_cl_number_count == _TRUE_) || (ppt->has_cl_lensing_potential == _TRUE_) || (ppt->has_vector_velocity_transfers == _TRUE_)) {
+
+  if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_cl_number_count == _TRUE_) || (ppt->has_cl_lensing_potential == _TRUE_) || (ppt->has_vector_velocity_transfers == _TRUE_)|| (ppt->has_magnetic_transfer == _TRUE_)) {
     /* Read */
     class_call(parser_read_double(pfc,"z_max_pk",&param1,&flag1,errmsg),
                errmsg,
@@ -5092,7 +5125,7 @@ int input_read_parameters_spectra(struct file_content * pfc,
     else {
       ppt->z_max_pk = 0.;
       /* For the z_pk related quantities, test here the z_pk requirements */
-      if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_vector_velocity_transfers == _TRUE_)) {
+      if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_vector_velocity_transfers == _TRUE_) || (ppt->has_magnetic_transfer == _TRUE_)) {
         for (i=0; i<pop->z_pk_num; i++) {
           ppt->z_max_pk = MAX(ppt->z_max_pk,pop->z_pk[i]);
         }
@@ -5548,6 +5581,7 @@ int input_read_parameters_output(struct file_content * pfc,
                                  struct primordial *ppm,
                                  struct harmonic *phr,
                                  struct fourier * pfo,
+				 struct magnetic * pma,
                                  struct lensing *ple,
                                  struct distortions *psd,
                                  struct output *pop,
@@ -5652,6 +5686,7 @@ int input_read_parameters_output(struct file_content * pfc,
   class_read_int("primordial_verbose",ppm->primordial_verbose);
   class_read_int("harmonic_verbose",phr->harmonic_verbose);
   class_read_int("fourier_verbose",pfo->fourier_verbose);
+  class_read_int("magnetic_verbose",pma->magnetic_verbose);
   class_read_int("lensing_verbose",ple->lensing_verbose);
   class_read_int("distortions_verbose",psd->distortions_verbose);
   class_read_int("output_verbose",pop->output_verbose);
@@ -5758,6 +5793,7 @@ int input_default_params(struct background *pba,
                          struct primordial *ppm,
                          struct harmonic *phr,
                          struct fourier * pfo,
+			 struct magnetic * pma,
                          struct lensing *ple,
                          struct distortions *psd,
                          struct output *pop) {
@@ -5813,6 +5849,7 @@ int input_default_params(struct background *pba,
   ppt->has_pk_matter = _FALSE_;
   ppt->has_density_transfers = _FALSE_;
   ppt->has_velocity_transfers = _FALSE_;
+  ppt->has_magnetic_transfer = _FALSE_;
   ppt->has_vector_velocity_transfers = _FALSE_;
   /** 1.a) 'tCl' case */
   ppt->switch_sw = 1;
@@ -5849,7 +5886,9 @@ int input_default_params(struct background *pba,
   /** 3.c) Initial conditions for vectors as defined in 2410.03612 */
   ppt->has_iso_v=_TRUE_;
   ppt->has_oct_v=_FALSE_;
-  /** 3.d) Methods to treat ultra-relativistic particles for vector perturbations */
+  ppt->has_smd_v=_FALSE_;
+  ppt->smd_zstart=1.e4;
+  /** 3.d) Methods for vectors */
   ppt->vector_method = vm_massless_approximation;
   ppt->evolve_vector_ur = _FALSE_;
   ppt->evolve_vector_ncdm = _FALSE_;
@@ -5949,6 +5988,7 @@ int input_default_params(struct background *pba,
   /** 5.d) --> See read_parameters_background */
   /** 5.e) ncdm temperature */
   pba->T_ncdm_default = 0.71611; /* this value gives m/omega = 93.14 eV b*/
+  //pba->T_ncdm_default = 0.716363; /* this value gives m/omega = 93.11 eV  and is updated with Froustey PhD thesis */
   pba->T_ncdm = NULL;
   /** 5.f) ncdm chemical potential */
   pba->ksi_ncdm_default = 0.;
@@ -6246,6 +6286,8 @@ int input_default_params(struct background *pba,
   /** 3) Power spectrum P(k) */
   /** 3.a) Maximum k in P(k) */
   ppt->k_max_for_pk=1.;
+  /** 3.a) Maximum k for transfer of magnetic field */
+  ppt->k_max_for_B=10.;
   /** 3.a) Maximum k in P(k) primordial */
   ppm->has_k_max_for_primordial_pk = _FALSE_;
   /** 3.b) Redshift values */
@@ -6349,6 +6391,7 @@ int input_default_params(struct background *pba,
   ppm->primordial_verbose = 0;
   phr->harmonic_verbose = 0;
   pfo->fourier_verbose = 0;
+  pma->magnetic_verbose = 0;
   ple->lensing_verbose = 0;
   psd->distortions_verbose = 0;
   pop->output_verbose = 0;

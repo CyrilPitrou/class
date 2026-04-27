@@ -596,6 +596,8 @@ extern "C" {
 /* remark: sigma_B = 2 pi^5 k_B^4 / (15h^3c^2) = 5.670400e-8
    = Stefan-Boltzmann constant in W/m^2/K^4 = Kg/K^4/s^3 */
 
+#define _inv_Mpc2_Gauss_ 1.01403e-18   /**< Conversion factor of 1/Mpc^2 to Gauss (magnetic field) */
+
 //@}
 
 /**
