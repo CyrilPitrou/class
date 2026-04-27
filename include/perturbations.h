@@ -577,7 +577,7 @@ struct perturbations_vector
   int index_pt_perturbed_recombination_delta_temp;		/**< Gas temperature perturbation */
   int index_pt_perturbed_recombination_delta_chi;		/**< Inionization fraction perturbation */
 
-  /** The index to the first Legendre multipole of the DR expansion. Not
+  /** The index to the first Legendre multipole of the DR expansion. Note
       that this is not exactly the usual delta, see Kaplinghat et al.,
       astro-ph/9907388. */
   int index_pt_F0_dr;
@@ -590,7 +590,7 @@ struct perturbations_vector
   int index_pt_eta;       /**< synchronous gauge metric perturbation eta*/
   int index_pt_phi;	      /**< newtonian gauge metric perturbation phi */
   int index_pt_hv_prime;  /**< vector metric perturbation h_v' in synchronous gauge */
-  int index_pt_V;         /**< vector metric perturbation V in Newtonian gauge */
+  int index_pt_V;         /**< vector metric perturbation V in Newtonian gauge as defined in 12-14 of astro-ph/9709066 */
 
   int index_pt_gw;        /**< tensor metric perturbation h (gravitational waves) */
   int index_pt_gwdot;     /**< its time-derivative */
@@ -630,7 +630,7 @@ struct perturbations_workspace
   int index_mt_alpha;         /**< \f$ \alpha = (h' + 6 \eta') / (2 k^2) \f$ in synchronous gauge */
   int index_mt_alpha_prime;   /**< \f$ \alpha'\f$ wrt conf. time) in synchronous gauge */
   int index_mt_gw_prime_prime;/**< second derivative wrt conformal time of gravitational wave field, often called h */
-  int index_mt_V_prime;       /**< derivative of Newtonian gauge vector metric perturbation V */
+  int index_mt_V_prime;       /**< derivative of Newtonian gauge vector metric perturbation V defined in 12-14 of astro-ph/9709066*/
   int index_mt_hv_prime_prime;/**< Second derivative of Synchronous gauge vector metric perturbation \f$ h_v\f$ */
   int mt_size;                /**< size of metric perturbation vector */
 
@@ -664,7 +664,7 @@ struct perturbations_workspace
   double tca_slip;     /**< photon-baryon slip in tight-coupling approximation */
 
   double tca_T2_vector;  /**< photon quadrupole in tight-coupling approximation for vector modes */
-  double tca_slip_vector;     /**< photon-baryon slip in tight-coupling approximation for vector modes */
+  double tca_slip_vector;     /**< photon-baryon slip (2.31 of 2410.03612) in tight-coupling approximation for vector modes */
   
   double tca_shear_idm_dr; /**< interacting dark radiation shear in tight coupling appproximation */
   double rsa_delta_g;  /**< photon density in radiation streaming approximation */
@@ -758,7 +758,7 @@ struct perturbations_parameters_and_workspace {
   struct background * pba;        /**< pointer to the background structure */
   struct thermodynamics * pth;            /**< pointer to the thermodynamics structure */
   struct perturbations * ppt;          /**< pointer to the precision structure */
-  int index_md;                   /**< index of mode (scalar/.../vector/tensor) */
+  int index_md;                   /**< index of mode (scalar/vector/tensor) */
   int index_ic;			          /**< index of initial condition (adiabatic/isocurvature(s)/...) */
   int index_k;			          /**< index of wavenumber */
   double k;			              /**< current value of wavenumber in 1/Mpc */

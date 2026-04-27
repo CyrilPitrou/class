@@ -1768,10 +1768,10 @@ int input_read_parameters_general(struct file_content * pfc,
   int flag1,flag2;
   double param1,param2;
   char string1[_ARGUMENT_LENGTH_MAX_];
-  char * options_output[38] =  {"tCl","pCl","lCl","nCl","dCl","sCl","mPk","mTk","dTk","vTk","sd",
+  char * options_output[36] =  {"tCl","pCl","lCl","nCl","dCl","sCl","mPk","mTk","dTk","vTk","sd",
                                 "TCl","PCl","LCl","NCl","DCl","SCl","MPk","MTk","DTk","VTk","Sd",
                                 "TCL","PCL","LCL","NCL","DCL","SCL","MPK","MTK","DTK","VTK","SD",
-				"BTk","BTK","wTk","WTk","WTK"};
+				"wTk","WTk","WTK"};
   char * options_temp_contributions[10] = {"tsw","eisw","lisw","dop","pol","TSW","EISW","LISW","Dop","Pol"};
   char * options_number_count[8] = {"density","dens","rsd","RSD","lensing","lens","gr","GR"};
   char * options_modes[6] = {"s","v","t","S","V","T"};
@@ -1841,11 +1841,11 @@ int input_read_parameters_general(struct file_content * pfc,
 
 
     /* Test */
-    class_call(parser_check_options(string1, options_output, 38, &flag1),
+    class_call(parser_check_options(string1, options_output, 36, &flag1),
                errmsg,
                errmsg);
     class_test(flag1==_FALSE_,
-               errmsg, "The options for output are {'tCl','pCl','lCl','nCl','dCl','sCl','mPk','mTk','dTk','vTk','Sd','BTk','wTk'}, you entered '%s'",string1);
+               errmsg, "The options for output are {'tCl','pCl','lCl','nCl','dCl','sCl','mPk','mTk','dTk','vTk','Sd','wTk'}, you entered '%s'",string1);
   }
 
   /** 1.a) Terms contributing to the temperature spectrum */
@@ -4392,10 +4392,12 @@ int input_read_parameters_primordial(struct file_content * pfc,
       }
     }
 
-    /** 1.b.3) For vector perturbations */
+    /** 1.b.3) For vector perturbations we read the vector-to-scalar ratio, the spectral index and running of spectral index */
     if (ppt->has_vectors == _TRUE_){
       /* Read */
       class_read_double("r_v",ppm->r_v);
+      class_read_double("n_v",ppm->n_v);
+      class_read_double("alpha_v",ppm->alpha_v);
       if (ppt->has_scalars == _FALSE_){
         class_read_double("A_s",ppm->A_s);
       }
@@ -5844,10 +5846,10 @@ int input_default_params(struct background *pba,
   ppt->tensor_method = tm_massless_approximation;
   ppt->evolve_tensor_ur = _FALSE_;
   ppt->evolve_tensor_ncdm = _FALSE_;
-  /** 3.c) Initial conditions for vectors */
+  /** 3.c) Initial conditions for vectors as defined in 2410.03612 */
   ppt->has_iso_v=_TRUE_;
   ppt->has_oct_v=_FALSE_;
-  /** 3.d) Methods for vectors */
+  /** 3.d) Methods to treat ultra-relativistic particles for vector perturbations */
   ppt->vector_method = vm_massless_approximation;
   ppt->evolve_vector_ur = _FALSE_;
   ppt->evolve_vector_ncdm = _FALSE_;
@@ -6172,9 +6174,9 @@ int input_default_params(struct background *pba,
   ppm->n_t = -ppm->r/8.*(2.-ppm->r/8.-ppm->n_s);
   ppm->alpha_t = ppm->r/8.*(ppm->r/8.+ppm->n_s-1.);
   /** 1.b.3) For vector perturbations */
-  ppm->r_v = 1.;
-  ppm->n_v = 0.;
-  ppm->alpha_v = 0.;
+  ppm->r_v = 1.;//vector-to-scalar ratior
+  ppm->n_v = 0.;//Spectral index of vector preturbations primordial spectrum
+  ppm->alpha_v = 0.;//Running of spectral index for vector perturbations primordial spectrum
   /** 1.c) For type 'inflation_V' */
   /** 1.c.2) Coefficients of the Taylor expansion */
   ppm->V0=1.25e-13;

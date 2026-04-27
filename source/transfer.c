@@ -542,7 +542,8 @@ int transfer_indices(
 
     index_tt = index_tt_common;
 
-    //For vectors we do not use index_tt_t1 and index_tt_b because this creates problems as these are not indices which are common to the three types of modes, but only two of them.
+    /** For vectors we do not use index_tt_t1 and index_tt_b because this creates problems as these are not indices which are common to the three types of modes, but only two of them.
+	Hence we define and intex tt_t1_v and tt_b_v */
     class_define_index(ptr->index_tt_t1_v,ppt->has_cl_cmb_temperature, index_tt,1);
     class_define_index(ptr->index_tt_b_v, ppt->has_cl_cmb_polarization,index_tt,1);
 
