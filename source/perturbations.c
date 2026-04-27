@@ -2888,8 +2888,9 @@ int perturbations_workspace_init(
 
        At first order in perturbations, the vorticity is
        \f$ \omega_i = 1/a * \epsilon^{ijk} \nabla_j u_k \f$  (in a tetrad components, otherwise remove the 1/a prefactor). See e.g. 1012.2958.
-       Hence \f$ v^{synchronous} \f$ is essentially (up to a curl of the mode function and the 1/a factor) the vorticity.
+       Hence \f$ v^{synchronous} \f$ is essentially (up to a curl of the mode function and the 1/a factor) the vorticity. 
     */
+
     class_define_index(ppw->index_mt_V_prime,_TRUE_,index_mt,1);
   }
 
@@ -4416,6 +4417,7 @@ int perturbations_vector_init(
         index_pt += (ppv->l_max_ncdm[n_ncdm]+1)*ppv->q_size_ncdm[n_ncdm];
       }
     }
+
     /** - (a) metric perturbations V, which is also related to \f$ h'_v \f$ of A17 in astro-ph/9709066
 	Hence in synchronous gauge we also use V as a metric perturbation.
 	The synchronous gauge changes the definition of velocities and dipoles but not the metric perturbations,
@@ -5625,6 +5627,7 @@ int perturbations_vector_init(
 				   ppw->pvecback),
 		 pba->error_message,
 		 ppt->error_message);
+
       /** I am using opposite definition for R than those used in perturbations_derivs.
       Dangerous life. To be discussed with Julien Lesgourgues.
       In this section dedicated to vector perturbations, R is defined by 2.33 of 2410.03612
@@ -5673,6 +5676,7 @@ int perturbations_vector_init(
       if ((pa_old[ppw->index_ap_tca] == (int)tca_on) && (ppw->approx[ppw->index_ap_tca] == (int)tca_off)) {
         if (ppt->perturbations_verbose>2)
           fprintf(stdout,"Mode k=%e: switch off tight-coupling approximation at tau=%e for vector modes \n",(double)k,tau);
+
 	/**Since in TCA theta_b stands for the tight coupled fluid velocity (aka vorticity), we deduce baryons and photons velocity in the following manner
 	   First \f$ dv = v_b - v_{photons} \f$ is given by 2.36 of 2410.03612 in TCA
 	   We then combine 2.34 and 2.31 to deduce that \f$ v_{baryons} = v_{tcfluid} + 1/(1+R) dv \f$ and \f$ v_{photons} = v_{tcfluid} -R/(1+R) dv \f$ (set a few lines below)
@@ -6497,6 +6501,7 @@ int perturbations_initial_conditions(struct precision * ppr,
 	rho_nu += ppw->pvecback[pba->index_bg_rho_ncdm1 + n_ncdm];
       }
     }
+
     //The definition of R is different from scalar perturbations. Here it is 2.33 of 2410.03612, but also what is used in astro-ph/0403583, astro-ph/9702170 and astro-ph/9709066.
     R = 3./4. * rho_b/rho_g;
 
@@ -6514,6 +6519,7 @@ int perturbations_initial_conditions(struct precision * ppr,
     */
     om = a*rho_m/sqrt(rho_r);
     cH= om *15.*rho_r/(30.*rho_r + 8.*rho_nu);//3.9 of 2410.03612
+
     //Initial conditions in the isocurvature case, section 3.1 of 2410.03612
     if ((ppt->has_iso_v == _TRUE_) && (index_ic == ppt->index_ic_iso_v)) {
       Phi0 = 1.;
@@ -7584,6 +7590,7 @@ int perturbations_total_stress_energy(
   double Gamma_fld, S, S_prime, theta_t, theta_t_prime, rho_plus_p_theta_fld_prime;
   double delta_p_b_over_rho_b;
   double ssqrt3;
+
   /** - wavenumber and scale factor related quantities */
 
   a = ppw->pvecback[pba->index_bg_a];
@@ -8080,6 +8087,7 @@ int perturbations_total_stress_energy(
     //ppw->vector_source_v = 0.;
     rho_fs=0.;
     ssqrt3 = sqrt(1.-2.*pba->K/k/k);
+
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) { /* if radiation streaming approximation is off */
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) { /* if tight-coupling approximation is off */
 	//Contribution of photons.
@@ -8092,6 +8100,7 @@ int perturbations_total_stress_energy(
           break;
         case tam:
 	  /** 2.21 of 2410.03612 is only for the flat case. For curved case we use Eq. 40 of astro-ph/9709066.
+
 	      The fancy (1-2K/k^2) factor for vectors (and all other factors in Eq. 40 of astro-ph/9709066) can be understood with Eq. 7.11 of 1909.13687,
 	      which leads for photons to \f$ \pi^{(m)}  = \frac{8}{5} P \Theta_2^{(m)} /( {}_0\tilde{g}^{(2m)} )\f$.
 
@@ -8179,6 +8188,7 @@ int perturbations_total_stress_energy(
 	  idx+=(ppw->pv->l_max_ncdm[n_ncdm]+1);
 	}
 	pincdm *= -1./3.*a2*(6.*_SQRT2_/5./ssqrt3) *factor;//Again similar to what was done for photons and neutrinos above.
+
 	ppw->vector_source_pi += pincdm;
       }
     }
@@ -11143,10 +11153,12 @@ int perturbations_derivs(double tau,
 			     +10./7.*y[pv->index_pt_pol0_g+2]
 			     -4./7.*y[pv->index_pt_pol0_g+4]);
 	  if (ppt->gauge == synchronous) {
+
 	    /* photon density (delta_g = F_0). 2.35 of 1305.3261 for l=0 m=1 remembering that s_1 = 1.
 	       Carefull that first expression for $u_0^{(1)}$ seems to have a typo. But its specifications for Newtonian and synchronous gauges are correct. */
 	    dy[pv->index_pt_l0_g] = -k*y[pv->index_pt_l0_g+1]
 	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l0_g]+2.*_SQRT2_*y[pv->index_pt_theta_b]);
+
 	    /* photon velocity (theta_g = (3k/4)*F_1) 2.35 of 1305.3261 for l=1 m=1*/
 	    dy[pv->index_pt_l0_g+1] = k/3.*(y[pv->index_pt_l0_g]-2.*s_l[2]*y[pv->index_pt_l0_g+2])
 	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l0_g+1]+2./3.*_SQRT6_*P1)
@@ -11156,14 +11168,17 @@ int perturbations_derivs(double tau,
 	    */
 	  }
 	  else if (ppt->gauge == newtonian) {
+
 	    /* photon density (delta_g = F_0) Again 2.35 of 1305.3261 with l=0 m=1*/
 	    dy[pv->index_pt_l0_g] = -k*y[pv->index_pt_l0_g+1]
 	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l0_g]+2.*_SQRT2_*y[pv->index_pt_theta_b])
 	      -2.*_SQRT2_*pvecmetric[ppw->index_mt_V_prime];
+
 	    /* photon velocity (theta_g = (3k/4)*F_1) Again 2.35 of 1305.3261 with l=1 m=1*/
 	    dy[pv->index_pt_l0_g+1] = k/3.*(y[pv->index_pt_l0_g]-2.*s_l[2]*y[pv->index_pt_l0_g+2])
 	      -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_l0_g+1]+2./3.*_SQRT6_*P1);
 	  }
+
 	  /* additional momenta in Boltzmann hierarchy. 2.35 of 1305.3261 for general l>=2 and m=1 with u_l=0.*/
 	  for (l=2; l < pv->l_max_g; l++)
 	    dy[pv->index_pt_l0_g+l] =
@@ -11176,12 +11191,14 @@ int perturbations_derivs(double tau,
 	    k*(s_l[l]*y[pv->index_pt_l0_g+l-1]
 	       -(1.+l)*cotKgen*y[pv->index_pt_l0_g+l])
 	    - pvecthermo[pth->index_th_dkappa]*y[pv->index_pt_l0_g+l];
+
 	  /* photon polarization, l=0 (pol0_g = G_0) 2.36 with m=1 of 1305.3261*/
 	  dy[pv->index_pt_pol0_g] =
 	    -k*y[pv->index_pt_pol0_g+1]
 	    //-pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_pol0_g] -_SQRT6_*P1);
 	    /** Typo alert. The factor in front of P1 must be -2*sqrt(6) but in Tram 1305.3261 there is a sign typo and this factor is displayed as 2*sqrt(6). 2.15b is however correct. */
 	    -pvecthermo[pth->index_th_dkappa]*(y[pv->index_pt_pol0_g] + 2*_SQRT6_*P1);
+
 	  /* additional momenta in Boltzmann hierarchy (2.36 of 1305.3261 for l>=1 and m=1) */
 	  for (l=1; l < pv->l_max_pol_g; l++)
 	    dy[pv->index_pt_pol0_g+l] =
