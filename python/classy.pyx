@@ -23,6 +23,7 @@ cimport cython
 from scipy.interpolate import CubicSpline
 from scipy.interpolate import UnivariateSpline
 from scipy.interpolate import interp1d
+import time
 
 # Nils : Added for python 3.x and python 2.x compatibility
 import sys
@@ -111,6 +112,7 @@ cdef class Class:
     cdef int allocated # Flag to see if classy structs are allocated already
     cdef object _pars # Dictionary of the parameters
     cdef object ncp   # Keeps track of the structures initialized, in view of cleaning.
+    cdef double cpu_time
 
     cdef char path_to_this[1000]
 
@@ -322,6 +324,9 @@ cdef class Class:
     @property
     def state(self):
       return True
+    @property
+    def cpu_time(self):
+      return CallableFloat(self.cpu_time)      
 
     ###############################################################
     # Now we can start with the actual code describing the classy #
@@ -336,6 +341,7 @@ cdef class Class:
         cdef char* dumc
         self.allocated = False
         self.computed = False
+        self.cpu_time = 0.
         self._pars = {}
         self.fc.size=0
         self.fc.filename = <char*>malloc(sizeof(char)*30)
@@ -544,6 +550,9 @@ cdef class Class:
         # Otherwise, proceed with the normal computation.
         self.computed = False
 
+        #timing	
+        self.cpu_time = time.time()
+
         # Equivalent of writing a parameter file
         self._fillparfile()
 
@@ -646,6 +655,8 @@ cdef class Class:
             self.ncp.add("distortions")
 
         self.computed = True
+
+        self.cpu_time = time.time() - self.cpu_time
 
         # At this point, the cosmological instance contains everything needed. The
         # following functions are only to output the desired numbers
@@ -3737,6 +3748,8 @@ cdef class Class:
                 if (self.sd.has_distortions == _FALSE_):
                     raise CosmoSevereError("No spectral distortions computed. In order to get mu_sd, you must add sd to the list of outputs.")
                 value = self.sd.sd_parameter_table[2]
+            elif name == 'cpu_time':
+                value = self.cpu_time
             else:
                 raise CosmoSevereError("%s was not recognized as a derived parameter" % name)
             derived[name] = value
