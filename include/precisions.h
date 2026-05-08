@@ -337,6 +337,10 @@ class_precision_parameter(perturbations_sampling_stepsize,double,0.1)
 */
 class_precision_parameter(perturbations_sampling_boost_above_age_fraction, double, 0.9)
 /**
+ * added in class_timing to control the amout of refinement which can differ fro a simple factor 2 if desired
+ */
+class_precision_parameter(perturbations_sampling_boost_factor, double, 2.)
+/**
  * control parameter for the precision of the perturbation integration,
  * IMPORTANT FOR SETTING THE STEPSIZE OF NDF15
  */

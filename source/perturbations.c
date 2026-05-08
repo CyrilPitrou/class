@@ -1825,7 +1825,7 @@ int perturbations_timesampling_for_sources(
        lensing line-of-sight integrals without changing that of
        unlensed CMB observables */
     if (tau > pba->conformal_age * ppr->perturbations_sampling_boost_above_age_fraction) {
-      timescale_source /= 2.;
+      timescale_source /= ppr->perturbations_sampling_boost_factor;
     }
 
     class_test(fabs(ppr->perturbations_sampling_stepsize*timescale_source/tau) < ppr->smallest_allowed_variation,
@@ -1915,7 +1915,7 @@ int perturbations_timesampling_for_sources(
        lensing line-of-sight integrals without changing that of
        unlensed CMB observables */
     if (tau > pba->conformal_age * ppr->perturbations_sampling_boost_above_age_fraction) {
-      timescale_source /= 2.;
+      timescale_source /= ppr->perturbations_sampling_boost_factor;
     }
 
     class_test(fabs(ppr->perturbations_sampling_stepsize*timescale_source/tau) < ppr->smallest_allowed_variation,
