@@ -684,7 +684,7 @@ int lensing_init(
       X_000_square = X_000 * X_000;
 
       //Up to version 3.3.4, the expression X_220 = 0.25*sqrt1[l] * X_000 was used, but it is an approximation which consists in neglecting a 1/l^2 correction, and we do not want that.
-      //The correct expression would be X_220 = 0.25 * sqrt1[l] * X_000 * exp(0.5*sigma2[index_mu]) (Eq. 40 in astro-ph/05425) and according to the method detailed above we use
+      //The correct expression would be X_220 = 0.25 * sqrt1[l] * X_000 * exp(0.5*sigma2[index_mu]) (Eq. 40 in astro-ph/0502425) and according to the method detailed above we use
       X_220 = 0.25*sqrt1[l] * X_000 * (1 +  0.5*sigma2[index_mu]);
       
 
@@ -700,11 +700,8 @@ int lensing_init(
 
       if (ple->has_te==_TRUE_ || ple->has_ee==_TRUE_ || ple->has_bb==_TRUE_) {
         /* X_022 = exp(-(fac-1.)*sigma2[index_mu]); */
-	//Up to version 3.3.4 we used
-        //X_022 = X_000 * (1+sigma2[index_mu]*(1+0.5*sigma2[index_mu])); /* Order 2 */
-	//But we can save a multiplication and an access to sigma2 by using
-	X_022 = X_000 * (1+ 1.5 * sigma2[index_mu]);
-	
+	X_022 = X_000 * (1+sigma2[index_mu]*(1+0.5*sigma2[index_mu])); /* Order 2 of (57) in astro-ph/0502425 */
+		
         X_p022 = -(fac-1.)*X_022; /* Old versions were missing the
                                      minus sign in this line, which introduced a very small error
                                      on the high-l C_l^TE lensed spectrum [credits for bug fix:
