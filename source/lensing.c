@@ -459,9 +459,9 @@ int lensing_init(
   }
 
   if (ple->lensing_verbose > 1) {
-    fin = clock(); //Uncomment if interested in performance.
+    fin = clock(); 
     cpu_time = (double)(fin-debut)/CLOCKS_PER_SEC;
-    printf("time in lensing_dxx=%4.3f s\n",cpu_time);
+    printf("time spent in precomputing the Wigner d^l_m1m2 =%4.3f s\n",cpu_time);
   }
 
 
@@ -597,9 +597,9 @@ int lensing_init(
     sigma2[index_mu] = Cgl[num_mu-1] - Cgl[index_mu];
   }
   if (ple->lensing_verbose > 1) {
-    fin = clock(); //Uncomment if interested in performance.
+    fin = clock(); 
     cpu_time = (double)(fin-debut)/CLOCKS_PER_SEC;
-    printf("time in Cgl,Cgl2,sigma2=%4.3f s\n",cpu_time);
+    printf("time spent in precomputing Cgl,Cgl2,sigma2=%4.3f s\n",cpu_time);
   }
 
 
@@ -866,7 +866,7 @@ int lensing_init(
   if (ple->lensing_verbose > 1) {
     fin = clock(); 
     cpu_time = (double)(fin-debut)/CLOCKS_PER_SEC;
-    printf("time in ksi=%4.3f s\n",cpu_time);
+    printf("time spent in computing ksi=%4.3f s\n",cpu_time);
   }
 
 
@@ -908,7 +908,7 @@ int lensing_init(
   if (ple->lensing_verbose > 1) {
     fin = clock(); 
     cpu_time = (double)(fin-debut)/CLOCKS_PER_SEC;
-    printf("time in final lensing computation=%4.3f s\n",cpu_time);
+    printf("time in final integral on lensed correlation functions=%4.3f s\n",cpu_time);
   }
 
   /** - spline computed \f$ C_l\f$'s in view of interpolation */
@@ -1454,8 +1454,6 @@ int lensing_dm1m2(
   int index_mu, l, lmin, i ;
   double *fac1, *fac2, *fac3, *fac4;
   double argsqrt=1.,pref;
-  clock_t debut,fin;
-  double cpu_time;
   class_alloc(fac1,lmax*sizeof(double),erreur);
   class_alloc(fac2,lmax*sizeof(double),erreur);
   class_alloc(fac3,lmax*sizeof(double),erreur);
@@ -1498,7 +1496,6 @@ int lensing_dm1m2(
     fac4[0] = sqrt(2./3.);
   }
 
-  debut = clock();
   class_setup_parallel();
   for (index_mu=0;index_mu<num_mu;index_mu++) {
     class_run_parallel(=,
@@ -1528,10 +1525,6 @@ int lensing_dm1m2(
   }
   class_finish_parallel();
 
-  fin = clock(); //Uncomment to estimate the time taken to compute the quadrature nodes and weights.
-  cpu_time = (double)(fin-debut)/CLOCKS_PER_SEC;
-  printf("time in Wigner m1=%d, m2=%d, is  %4.5f s\n",m1,m2,cpu_time);
-  
   free(fac1); free(fac2); free(fac3); free(fac4);
   return _SUCCESS_;
 }
