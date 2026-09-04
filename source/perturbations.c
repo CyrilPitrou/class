@@ -522,9 +522,9 @@ int perturbations_output_data(
       if (_vectors_) {
 	if (ppt->has_vector_velocity_transfers == _TRUE_) {
 	  class_store_double(dataptr,tk[ppt->index_tp_V],_TRUE_,storeidx);
-	  class_store_double(dataptr,tk[ppt->index_tp_theta_g],ppt->has_source_vector_theta_g,storeidx);
-	  class_store_double(dataptr,tk[ppt->index_tp_theta_b],ppt->has_source_vector_theta_b,storeidx);
-	  class_store_double(dataptr,tk[ppt->index_tp_theta_ur],ppt->has_source_vector_theta_ur,storeidx);
+	  class_store_double(dataptr,tk[ppt->index_tp_vector_theta_g],ppt->has_source_vector_theta_g,storeidx);
+	  class_store_double(dataptr,tk[ppt->index_tp_vector_theta_b],ppt->has_source_vector_theta_b,storeidx);
+	  class_store_double(dataptr,tk[ppt->index_tp_vector_theta_ur],ppt->has_source_vector_theta_ur,storeidx);
 	}
 	if (ppt->has_magnetic_transfer == _TRUE_)
 	  class_store_double(dataptr,tk[ppt->index_tp_magnetic],ppt->has_magnetic_transfer,storeidx);
